@@ -47,14 +47,10 @@ namespace JeoMTT.Controllers
         }
 
         // GET: JeoGame/Details/5
-        public async Task<IActionResult> Details(int? id)
+        public async Task<IActionResult> Details(Guid? id)
         {
-            if (id == null)
+            if (id == null || id == Guid.Empty)
             {
-                _telemetryClient.TrackEvent("JeoGameDetailsRequested", new Dictionary<string, string>
-                {
-                    { "id", "null" }
-                });
                 return NotFound();
             }
 
@@ -79,7 +75,8 @@ namespace JeoMTT.Controllers
                 });
 
                 return View(jeoGame);
-            }            catch (Exception ex)
+            }
+            catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving JeoGame with id {Id}", id);
                 _telemetryClient.TrackException(ex);
@@ -88,9 +85,9 @@ namespace JeoMTT.Controllers
         }
 
         // GET: JeoGame/PlayBoard/5
-        public async Task<IActionResult> PlayBoard(int? id)
+        public async Task<IActionResult> PlayBoard(Guid? id)
         {
-            if (id == null)
+            if (id == null || id == Guid.Empty)
             {
                 return NotFound();
             }
@@ -126,7 +123,7 @@ namespace JeoMTT.Controllers
         // POST: JeoGame/SaveQuestion
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> SaveQuestion(int categoryId, int points, string questionText, string answerText)
+        public async Task<IActionResult> SaveQuestion(Guid categoryId, int points, string questionText, string answerText)
         {
             if (string.IsNullOrWhiteSpace(questionText) || string.IsNullOrWhiteSpace(answerText))
             {
@@ -191,7 +188,7 @@ namespace JeoMTT.Controllers
 
         // GET: JeoGame/GetQuestion
         [HttpGet]
-        public async Task<IActionResult> GetQuestion(int categoryId, int points)
+        public async Task<IActionResult> GetQuestion(Guid categoryId, int points)
         {
             try
             {
@@ -217,7 +214,9 @@ namespace JeoMTT.Controllers
         {
             _telemetryClient.TrackEvent("JeoGameCreatePageRequested");
             return View();
-        }// POST: JeoGame/Create
+        }
+
+        // POST: JeoGame/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("Name,Description,Author")] JeoGame jeoGame)
@@ -252,9 +251,9 @@ namespace JeoMTT.Controllers
         }
 
         // GET: JeoGame/Edit/5
-        public async Task<IActionResult> Edit(int? id)
+        public async Task<IActionResult> Edit(Guid? id)
         {
-            if (id == null)
+            if (id == null || id == Guid.Empty)
             {
                 return NotFound();
             }
@@ -285,7 +284,7 @@ namespace JeoMTT.Controllers
         // POST: JeoGame/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Name,Description,Author,CreatedAt")] JeoGame jeoGame)
+        public async Task<IActionResult> Edit(Guid id, [Bind("Id,Name,Description,Author,CreatedAt")] JeoGame jeoGame)
         {
             if (id != jeoGame.Id)
             {
@@ -319,9 +318,9 @@ namespace JeoMTT.Controllers
         }
 
         // GET: JeoGame/Delete/5
-        public async Task<IActionResult> Delete(int? id)
+        public async Task<IActionResult> Delete(Guid? id)
         {
-            if (id == null)
+            if (id == null || id == Guid.Empty)
             {
                 return NotFound();
             }
@@ -355,7 +354,7 @@ namespace JeoMTT.Controllers
         // POST: JeoGame/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
+        public async Task<IActionResult> DeleteConfirmed(Guid id)
         {
             try
             {
@@ -375,16 +374,17 @@ namespace JeoMTT.Controllers
                 return RedirectToAction(nameof(Index));
             }
             catch (Exception ex)
-            {                _logger.LogError(ex, "Error deleting JeoGame with id {Id}", id);
+            {
+                _logger.LogError(ex, "Error deleting JeoGame with id {Id}", id);
                 _telemetryClient.TrackException(ex);
                 throw;
             }
         }
 
         // GET: JeoGame/ManageCategories/5
-        public async Task<IActionResult> ManageCategories(int? id)
+        public async Task<IActionResult> ManageCategories(Guid? id)
         {
-            if (id == null)
+            if (id == null || id == Guid.Empty)
             {
                 return NotFound();
             }
@@ -419,7 +419,7 @@ namespace JeoMTT.Controllers
         // POST: JeoGame/AddCategory
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AddCategory(int gameId, string categoryName)
+        public async Task<IActionResult> AddCategory(Guid gameId, string categoryName)
         {
             if (string.IsNullOrWhiteSpace(categoryName))
             {
@@ -481,7 +481,7 @@ namespace JeoMTT.Controllers
         // POST: JeoGame/RemoveCategory
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RemoveCategory(int categoryId, int gameId)
+        public async Task<IActionResult> RemoveCategory(Guid categoryId, Guid gameId)
         {
             try
             {
@@ -514,7 +514,7 @@ namespace JeoMTT.Controllers
         // POST: JeoGame/FinishCategories
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> FinishCategories(int id)
+        public async Task<IActionResult> FinishCategories(Guid id)
         {
             try
             {
@@ -533,7 +533,7 @@ namespace JeoMTT.Controllers
                     { "categoryCount", jeoGame.Categories.Count.ToString() }
                 });
 
-                return RedirectToAction(nameof(Details), new { id = jeoGame.Id });
+                return RedirectToAction(nameof(PlayBoard), new { id = jeoGame.Id });
             }
             catch (Exception ex)
             {

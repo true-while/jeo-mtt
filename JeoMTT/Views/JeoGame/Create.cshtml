@@ -13,27 +13,25 @@
                 </div>
                 <div class="card-body">
                     <form asp-action="Create" method="post" novalidate>
-                        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
-
-                        <div class="mb-3">
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>                        <div class="mb-3">
                             <label asp-for="Name" class="form-label">Game Name <span class="text-danger">*</span></label>
-                            <input asp-for="Name" class="form-control" placeholder="Enter game name" required />
-                            <span asp-validation-for="Name" class="text-danger small"></span>
+                            <input asp-for="Name" class="form-control" placeholder="Enter game name" />
+                            <span asp-validation-for="Name" class="text-danger small d-block mt-1"></span>
                             <small class="text-muted">Enter a descriptive name for your Jeopardy game.</small>
                         </div>
 
                         <div class="mb-3">
                             <label asp-for="Author" class="form-label">Author <span class="text-danger">*</span></label>
-                            <input asp-for="Author" class="form-control" placeholder="Your name" required />
-                            <span asp-validation-for="Author" class="text-danger small"></span>
+                            <input asp-for="Author" class="form-control" placeholder="Your name" />
+                            <span asp-validation-for="Author" class="text-danger small d-block mt-1"></span>
                             <small class="text-muted">Who is creating this game?</small>
                         </div>
 
                         <div class="mb-3">
                             <label asp-for="Description" class="form-label">Description</label>
-                            <textarea asp-for="Description" class="form-control" rows="4" placeholder="Enter a description of your game..."></textarea>
-                            <span asp-validation-for="Description" class="text-danger small"></span>
-                            <small class="text-muted">Optionally describe what this game is about.</small>
+                            <textarea asp-for="Description" class="form-control" rows="2" placeholder="Enter a description of your game..."></textarea>
+                            <span asp-validation-for="Description" class="text-danger small d-block mt-1"></span>
+                            <small class="text-muted">Optional: Briefly describe what this game is about.</small>
                         </div>
 
                         <div class="d-flex justify-content-between mt-4">
