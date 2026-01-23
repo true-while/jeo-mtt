@@ -1,0 +1,139 @@
+@model JeoMTT.Models.JeoGame
+
+@{
+    ViewData["Title"] = "Delete Game";
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-6 offset-md-3">
+            <div class="card shadow-sm border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-exclamation-triangle"></i> @ViewData["Title"]
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning" role="alert">
+                        <strong>⚠️ Warning!</strong> This action cannot be undone.
+                    </div>
+
+                    <h5 class="mb-3">Are you sure you want to delete this game?</h5>
+
+                    <div class="card bg-light mb-4">
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <strong>Game Name:</strong>
+                                <p class="text-danger fs-5">@Model.Name</p>
+                            </div>
+                            <div class="mb-3">
+                                <strong>Author:</strong>
+                                <p class="fs-5">@Model.Author</p>
+                            </div>
+                            <div class="mb-3">
+                                <strong>Created:</strong>
+                                <p class="fs-5">@Model.CreatedAt.ToString("MMMM dd, yyyy h:mm tt")</p>
+                            </div>
+                            @if (!string.IsNullOrEmpty(Model.Description))
+                            {
+                                <div class="mb-0">
+                                    <strong>Description:</strong>
+                                    <p class="fs-5">@Model.Description</p>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <form asp-action="DeleteConfirmed" asp-route-id="@Model.Id" method="post" class="d-inline">
+                        <div class="d-flex justify-content-between">
+                            <a asp-action="Index" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="bi bi-trash"></i> Yes, Delete Game
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        border-radius: 0.5rem;
+    }
+
+    .card-header {
+        border-radius: 0.5rem 0.5rem 0 0;
+        padding: 1.25rem;
+        font-weight: 600;
+    }
+
+    .card-body {
+        padding: 2rem;
+    }
+
+    .bg-light {
+        background-color: #f8f9fa !important;
+    }
+
+    .text-danger {
+        color: #dc3545 !important;
+        font-weight: 600;
+    }
+
+    .btn {
+        font-weight: 500;
+        padding: 0.5rem 1.5rem;
+    }
+
+    .alert-warning {
+        background-color: #fff3cd;
+        border-color: #ffecb5;
+        color: #664d03;
+    }
+
+    h5 {
+        color: #495057;
+        font-weight: 600;
+    }
+
+    .border-danger {
+        border: 2px solid #dc3545 !important;
+    }
+</style>
+
+@section Scripts {
+    <script>
+        // Track delete confirmation page view
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.trackEvent) {
+                trackEvent('JeoGameDeleteConfirmationViewed', {
+                    'gameId': '@Model.Id',
+                    'gameName': '@Html.Raw(Model.Name)'
+                });
+            }
+        });
+
+        // Track delete button click
+        document.querySelector('form').addEventListener('submit', function() {
+            if (window.trackEvent) {
+                trackEvent('JeoGameDeleteConfirmed', {
+                    'gameId': '@Model.Id',
+                    'gameName': '@Html.Raw(Model.Name)'
+                });
+            }
+        });
+
+        // Track cancel button click
+        document.querySelector('.btn-secondary').addEventListener('click', function() {
+            if (window.trackEvent) {
+                trackEvent('JeoGameDeleteCancelled', {
+                    'gameId': '@Model.Id'
+                });
+            }
+        });
+    </script>
+}

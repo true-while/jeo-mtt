@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.002.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "JeoMTT", "JeoMTT\JeoMTT.csproj", "{18FA3BFF-8B22-497D-A41F-3B791237AEBB}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{18FA3BFF-8B22-497D-A41F-3B791237AEBB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{18FA3BFF-8B22-497D-A41F-3B791237AEBB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{18FA3BFF-8B22-497D-A41F-3B791237AEBB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{18FA3BFF-8B22-497D-A41F-3B791237AEBB}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {377BFC51-92D4-46BC-8E89-39CC1E4C9843}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,345 @@
+@model JeoMTT.Models.JeoGame
+
+@{
+    ViewData["Title"] = "Create Question Groups";
+}
+
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1>@ViewData["Title"]</h1>
+            <p class="text-muted">Add up to 5 question groups (categories) for your game</p>
+        </div>
+    </div>
+
+    <!-- Game Info Card -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5 class="card-title">Game Name</h5>
+                            <p class="fs-5"><strong>@Model.Name</strong></p>
+                        </div>
+                        <div class="col-md-6">
+                            <h5 class="card-title">Author</h5>
+                            <p class="fs-5"><strong>@Model.Author</strong></p>
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(Model.Description))
+                    {
+                        <div class="row">
+                            <div class="col-md-12">
+                                <h5 class="card-title">Description</h5>
+                                <p class="fs-6">@Model.Description</p>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Category Form -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Add a New Group</h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.Categories.Count >= 5)
+                    {
+                        <div class="alert alert-warning" role="alert">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <strong>Maximum limit reached!</strong> You have already created 5 groups. This is the maximum allowed.
+                        </div>
+                    }
+
+                    <form id="addCategoryForm" class="needs-validation">
+                        <div class="mb-3">
+                            <label for="categoryName" class="form-label">Group Name <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="categoryName" name="categoryName" 
+                                       placeholder="e.g., Science, History, Sports..." required
+                                       @(Model.Categories.Count >= 5 ? "disabled" : "") />
+                                <button class="btn btn-primary" type="submit" id="addCategoryBtn"
+                                        @(Model.Categories.Count >= 5 ? "disabled" : "")>
+                                    <i class="bi bi-plus-circle"></i> Add Group
+                                </button>
+                            </div>
+                            <small class="text-muted">Enter a unique name for your question group.</small>
+                            <div id="categoryError" class="invalid-feedback d-block" style="display: none;"></div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Indicator -->
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Progress</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Groups Created:</span>
+                            <span class="badge bg-primary">@Model.Categories.Count / 5</span>
+                        </div>                        <div class="progress">
+                            <div class="progress-bar" role="progressbar" 
+                                 style="width: @(Model.Categories.Count * 20)%"
+                                 aria-valuenow="@Model.Categories.Count" aria-valuemin="0" aria-valuemax="5">
+                                @(Model.Categories.Count * 20)%
+                            </div>
+                        </div>
+                    </div>
+                    <small class="text-muted">
+                        @if (Model.Categories.Count == 0)
+                        {
+                            <p>Start by adding your first group.</p>
+                        }
+                        else if (Model.Categories.Count < 5)
+                        {
+                            <p>@(5 - Model.Categories.Count) more group@((5 - Model.Categories.Count) != 1 ? "s" : "") can be added.</p>
+                        }
+                        else
+                        {
+                            <p>All 5 groups have been created!</p>
+                        }
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Categories List -->
+    @if (Model.Categories.Any())
+    {
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">Created Groups</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            @foreach (var category in Model.Categories)
+                            {
+                                <div class="col-md-6">
+                                    <div class="card border-success h-100">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div>
+                                                    <h6 class="card-title text-success">@category.Name</h6>
+                                                    <small class="text-muted">ID: @category.Id</small>
+                                                </div>
+                                                <button type="button" class="btn btn-sm btn-outline-danger remove-category" 
+                                                        data-category-id="@category.Id" data-category-name="@category.Name"
+                                                        title="Remove this group">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-md-12">
+                <div class="alert alert-info" role="alert">
+                    <i class="bi bi-info-circle"></i>
+                    <strong>No groups yet!</strong> Add your first question group to get started.
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Action Buttons -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between">
+                <a href="@Url.Action("Index", "JeoGame")" class="btn btn-secondary btn-lg">
+                    <i class="bi bi-arrow-left"></i> Cancel
+                </a>
+                <form method="post" action="@Url.Action("FinishCategories", "JeoGame")" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <button type="submit" class="btn btn-success btn-lg" @(Model.Categories.Count == 0 ? "disabled" : "")>
+                        <i class="bi bi-check-circle"></i> 
+                        @(Model.Categories.Count == 0 ? "Add Groups First" : "Continue to Details")
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        border-radius: 0.5rem;
+        transition: box-shadow 0.3s ease;
+    }
+
+    .card:hover {
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+
+    .progress {
+        height: 25px;
+        border-radius: 0.5rem;
+        background-color: #e9ecef;
+    }
+
+    .progress-bar {
+        background-color: #0d6efd;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+    }
+
+    .badge {
+        font-size: 0.875rem;
+        padding: 0.5rem 0.75rem;
+    }
+
+    .btn {
+        font-weight: 500;
+        padding: 0.5rem 1.5rem;
+    }
+
+    .input-group .btn {
+        padding: 0.5rem 1.25rem;
+    }
+
+    .border-success {
+        border-left: 4px solid #198754 !important;
+    }
+
+    .text-success {
+        font-weight: 600;
+    }
+</style>
+
+@section Scripts {
+    <script>
+        const gameId = @Model.Id;
+
+        // Add Category
+        document.getElementById('addCategoryForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const categoryName = document.getElementById('categoryName').value.trim();
+            const errorDiv = document.getElementById('categoryError');
+
+            if (!categoryName) {
+                errorDiv.textContent = 'Group name is required';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            try {
+                const response = await fetch('/JeoGame/AddCategory', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'RequestVerificationToken': document.querySelector('[name="__RequestVerificationToken"]')?.value || ''
+                    },
+                    body: new URLSearchParams({
+                        'gameId': gameId,
+                        'categoryName': categoryName
+                    })
+                });
+
+                if (response.ok) {
+                    if (window.trackEvent) {
+                        trackEvent('CategoryAdded', {
+                            'gameId': gameId.toString(),
+                            'categoryName': categoryName
+                        });
+                    }
+                    
+                    // Reload the page to show the new category
+                    location.reload();
+                } else {
+                    const errorText = await response.text();
+                    errorDiv.textContent = errorText || 'Failed to add group';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Error adding group: ' + error.message;
+                errorDiv.style.display = 'block';
+                if (window.trackEvent) {
+                    trackEvent('CategoryAddError', {
+                        'error': error.message
+                    });
+                }
+            }
+        });
+
+        // Remove Category
+        document.querySelectorAll('.remove-category').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                if (!confirm('Are you sure you want to remove this group? This will also delete all questions in it.')) {
+                    return;
+                }
+
+                const categoryId = btn.dataset.categoryId;
+                const categoryName = btn.dataset.categoryName;
+
+                try {
+                    const response = await fetch('/JeoGame/RemoveCategory', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'RequestVerificationToken': document.querySelector('[name="__RequestVerificationToken"]')?.value || ''
+                        },
+                        body: new URLSearchParams({
+                            'categoryId': categoryId,
+                            'gameId': gameId
+                        })
+                    });
+
+                    if (response.ok) {
+                        if (window.trackEvent) {
+                            trackEvent('CategoryRemoved', {
+                                'gameId': gameId.toString(),
+                                'categoryId': categoryId,
+                                'categoryName': categoryName
+                            });
+                        }
+                        location.reload();
+                    } else {
+                        alert('Failed to remove group');
+                    }
+                } catch (error) {
+                    alert('Error: ' + error.message);
+                    if (window.trackEvent) {
+                        trackEvent('CategoryRemoveError', {
+                            'error': error.message
+                        });
+                    }
+                }
+            });
+        });
+
+        // Track page view
+        if (window.trackEvent) {
+            trackEvent('ManageCategoriesPageViewed', {
+                'gameId': gameId.toString(),
+                'categoryCount': '@Model.Categories.Count'
+            });
+        }
+    </script>
+}

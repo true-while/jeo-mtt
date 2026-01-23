@@ -1,0 +1,120 @@
+@model JeoMTT.Models.JeoGame
+
+@{
+    ViewData["Title"] = "Create New Game";
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">@ViewData["Title"]</h4>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Create" method="post" novalidate>
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                        <div class="mb-3">
+                            <label asp-for="Name" class="form-label">Game Name <span class="text-danger">*</span></label>
+                            <input asp-for="Name" class="form-control" placeholder="Enter game name" required />
+                            <span asp-validation-for="Name" class="text-danger small"></span>
+                            <small class="text-muted">Enter a descriptive name for your Jeopardy game.</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Author" class="form-label">Author <span class="text-danger">*</span></label>
+                            <input asp-for="Author" class="form-control" placeholder="Your name" required />
+                            <span asp-validation-for="Author" class="text-danger small"></span>
+                            <small class="text-muted">Who is creating this game?</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Description" class="form-label">Description</label>
+                            <textarea asp-for="Description" class="form-control" rows="4" placeholder="Enter a description of your game..."></textarea>
+                            <span asp-validation-for="Description" class="text-danger small"></span>
+                            <small class="text-muted">Optionally describe what this game is about.</small>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a asp-action="Index" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle"></i> Create Game
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        border: none;
+        border-radius: 0.5rem;
+    }
+
+    .card-header {
+        border-radius: 0.5rem 0.5rem 0 0;
+        padding: 1.25rem;
+    }
+
+    .form-label {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .text-danger {
+        font-weight: 700;
+    }
+
+    .form-control:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+
+    textarea.form-control {
+        resize: vertical;
+    }
+
+    .btn {
+        font-weight: 500;
+        padding: 0.5rem 1.5rem;
+    }
+</style>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+    <script>
+        // Track form interactions
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.querySelector('form');
+            
+            form.addEventListener('submit', function() {
+                if (window.trackEvent) {
+                    trackEvent('JeoGameCreateFormSubmitted', {
+                        'gameName': document.querySelector('[name="Name"]').value,
+                        'author': document.querySelector('[name="Author"]').value
+                    });
+                }
+            });
+
+            // Track when user starts filling the form
+            document.querySelectorAll('.form-control').forEach(input => {
+                input.addEventListener('focus', function() {
+                    if (window.trackEvent) {
+                        trackEvent('JeoGameCreateFormFocused', {
+                            'field': this.name
+                        });
+                    }
+                });
+            });
+        });
+    </script>
+}
