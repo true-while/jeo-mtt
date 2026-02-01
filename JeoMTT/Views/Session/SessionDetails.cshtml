@@ -1,0 +1,985 @@
+@model JeoMTT.Models.GameSession
+
+@{
+    ViewData["Title"] = "Session Details - " + Model.JoinCode;
+    var completedQuestionIds = ViewBag.CompletedQuestionIds as List<Guid> ?? new List<Guid>();
+}
+
+<div class="container-fluid mt-4">
+
+    <!-- Info Cards Row (20% each for first 4 columns) -->
+    <div class="row mb-4">
+        <!-- Game Name Card (20%) -->
+        <div class="col-md-2" style="flex: 0 0 20%;">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h6 class="card-title text-muted small mb-2">
+                        <i class="bi bi-controller"></i> Game
+                    </h6>
+                    <h5 class="card-text text-primary">
+                        @Model.Game?.Name
+                    </h5>
+                </div>
+            </div>
+        </div>        <!-- Session Link with JoinCode (20%) -->
+        <div class="col-md-2" style="flex: 0 0 20%;">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h6 class="card-title text-muted small mb-2">
+                        <i class="bi bi-link-45deg"></i> Join Code
+                    </h6>
+                    <div class="input-group input-group-sm">
+                        <input type="text" 
+                               class="form-control" 
+                               id="joinCode" 
+                               value="@Model.JoinCode"
+                               readonly 
+                               style="font-size: 0.9rem; font-weight: bold;" />
+                        <input type="hidden" 
+                               id="joinLink" 
+                               value='@Url.Action("Join", "Session", new { code = Model.JoinCode }, Context.Request.Scheme, Context.Request.Host.Value)' />
+                        <button class="btn btn-outline-secondary btn-sm" type="button" id="copyJoinCodeBtn" title="Copy join link">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Player Count Card (20%) -->
+        <div class="col-md-2" style="flex: 0 0 20%;">
+            <div class="card h-100 border-primary shadow-sm">
+                <div class="card-body">
+                    <h6 class="card-title text-muted small mb-2">
+                        <i class="bi bi-people-fill"></i> Players
+                    </h6>
+                    <h2 class="card-text text-primary" data-player-count="@(Model.SessionPlayers?.Count ?? 0)">
+                        <span id="playerCountDisplay">@(Model.SessionPlayers?.Count ?? 0)</span>
+                    </h2>
+                </div>
+            </div>
+        </div>        <!-- Top Player Card (20%) -->
+        <div class="col-md-2" style="flex: 0 0 20%;">
+            <div class="card h-100 border-warning shadow-sm">
+                <div class="card-body">
+                    <h6 class="card-title text-muted small mb-2">
+                        <i class="bi bi-trophy-fill text-warning"></i> Top Player
+                    </h6>
+                    @{
+                        var topPlayer = Model.SessionPlayers?
+                            .Where(sp => sp.Score > 0)
+                            .OrderByDescending(sp => sp.Score)
+                            .FirstOrDefault();
+                    }
+                    @if (topPlayer != null)
+                    {
+                        <div>
+                            <p class="card-text small mb-1">
+                                <strong>@topPlayer.PlayerNickname</strong>
+                            </p>
+                            <p class="card-text text-warning">
+                                <strong>@topPlayer.Score pts</strong>
+                            </p>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="card-text text-muted small">-</p>
+                    }                </div>
+            </div>
+        </div>
+
+        <!-- Last Correct Answer Card (20%) -->
+        <div class="col-md-2" style="flex: 0 0 20%;">
+            <div class="card h-100 border-info shadow-sm">
+                <div class="card-body">                    <h6 class="card-title text-muted small mb-2">
+                        <i class="bi bi-check-circle-fill text-info"></i> Last Correct
+                    </h6>
+                    @{
+                        // Last correct answer from GameRounds
+                        var lastCorrectAnswer = Model.Rounds?
+                            .Where(gr => gr.Status == GameRoundStatus.Answered)
+                            .OrderByDescending(gr => gr.EndedAt)
+                            .FirstOrDefault();
+                    }
+                    @if (lastCorrectAnswer != null)
+                    {
+                        <div>
+                            <p class="card-text small mb-1">
+                                <strong>@lastCorrectAnswer.Question?.Category?.Name</strong>
+                            </p>
+                            <p class="card-text text-info">
+                                <strong>@lastCorrectAnswer.Question?.Points pts</strong>
+                            </p>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="card-text text-muted small">-</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h3 class="mb-3">
+                <i class="bi bi-grid-3x3"></i> Question Board
+            </h3>
+            
+            @if (Model.Game?.Categories != null && Model.Game.Categories.Any())
+            {
+                <div class="jeopardy-board">
+                    <div class="board-wrapper">
+                        <!-- Category Headers -->
+                        <div class="board-row board-header">
+                            @foreach (var category in Model.Game.Categories)
+                            {
+                                <div class="board-cell category-header">
+                                    <strong>@category.Name</strong>
+                                </div>
+                            }
+                        </div>                        <!-- Question Grid (5 rows = 5 point values) -->
+                        @for (int pointRow = 0; pointRow < 5; pointRow++)
+                        {
+                            var points = new[] { 100, 200, 300, 400, 500 }[pointRow];
+                            <div class="board-row">
+                                @foreach (var category in Model.Game.Categories)
+                                {
+                                    var question = category.Questions.FirstOrDefault(q => q.Points == points);
+                                    var isCompleted = question != null && completedQuestionIds.Contains(question.Id);
+                                    
+                                    <div class="board-cell">
+                                        @if (question != null)
+                                        {
+                                            <button type="button" 
+                                                    class="question-btn @(isCompleted ? "completed" : "")" 
+                                                    data-question-id="@question.Id"
+                                                    data-question-text="@question.Text"
+                                                    data-category-name="@category.Name"
+                                                    data-points="@points"
+                                                    title="@(isCompleted ? "Question completed" : "Click to start round")"
+                                                    onclick="startRound('@Model.Id', '@question.Id', '@points')"
+                                                    @(isCompleted ? "disabled" : "")>                                                @if (isCompleted)
+                                                {
+                                                    <div class="check-mark">✓</div>
+                                                }
+                                                else
+                                                {
+                                                    <span class="points-value">@points</span>
+                                                }
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <div class="board-cell-empty"></div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info" role="alert">
+                    <i class="bi bi-info-circle"></i> No questions available for this game yet.
+                </div>
+            }
+        </div>
+    </div>    <!-- Session Controls -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="d-flex gap-2">
+                <a href="@Url.Action("StartNewSession")" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Sessions
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/lib/signalr/signalr.js"></script>
+    <script src="~/js/game-session-client.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        (function() {
+            const sessionId = '@Model.Id.ToString()';
+            const expiresAtUtc = '@Model.ExpiresAt.ToUniversalTime().ToString("O")';
+            let updateInterval;
+            let connection;
+
+            // Setup copy buttons
+            setupCopyButtons();
+
+            // Initialize SignalR for real-time updates
+            initializeSignalR();
+
+            function setupCopyButtons() {
+                const copyJoinCodeBtn = document.getElementById('copyJoinCodeBtn');
+                const joinLink = document.getElementById('joinLink');
+
+                if (copyJoinCodeBtn && joinLink) {
+                    copyJoinCodeBtn.addEventListener('click', function() {
+                        copyToClipboard(joinLink.value, copyJoinCodeBtn);
+                    });
+                }
+            }
+
+            function copyToClipboard(text, button) {
+                navigator.clipboard.writeText(text).then(() => {
+                    const originalHtml = button.innerHTML;
+                    button.innerHTML = '<i class="bi bi-check-circle"></i>';
+                    button.classList.add('active');
+                    
+                    setTimeout(() => {
+                        button.innerHTML = originalHtml;
+                        button.classList.remove('active');
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Failed to copy:', err);
+                });
+            }
+
+            /**
+             * Initialize SignalR connection for real-time updates
+             */
+            function initializeSignalR() {
+                try {
+                    connection = new signalR.HubConnectionBuilder()
+                        .withUrl("/gamehub")
+                        .withAutomaticReconnect([0, 0, 1000, 3000, 5000, 10000])
+                        .build();
+
+                    connection.on("PlayerJoined", onPlayerJoined);
+                    connection.on("SessionUpdated", onSessionUpdated);
+                    connection.on("Error", onError);
+
+                    connection.onreconnected(() => {
+                        console.log("Reconnected to server");
+                        joinSessionGroup();
+                    });
+
+                    connection.onclose(() => {
+                        console.log("Connection closed");
+                    });
+
+                    connection.start()
+                        .then(() => {
+                            console.log("SignalR connected");
+                            joinSessionGroup();
+                        })
+                        .catch(err => {
+                            console.error("SignalR connection error:", err);
+                            setupFallbackPolling();
+                        });
+                } catch (err) {
+                    console.error("Error initializing SignalR:", err);
+                    setupFallbackPolling();
+                }
+            }
+
+            function joinSessionGroup() {
+                if (connection && connection.state === signalR.HubConnectionState.Connected) {
+                    connection.invoke("JoinSession", sessionId, "Observer")
+                        .catch(err => console.error("Error joining session group:", err));
+                }
+            }            function onPlayerJoined(data) {
+                console.log("Player joined:", data);
+                // No need to fetch - SessionUpdated event will be called by SignalR hub
+            }
+
+            function onSessionUpdated(data) {
+                console.log("Session updated:", data);
+                // Update player count directly from SignalR data
+                const playerCountDisplay = document.getElementById('playerCountDisplay');
+                const playerCountElement = document.querySelector('[data-player-count]');
+                
+                if (playerCountDisplay) {
+                    playerCountDisplay.textContent = data.playerCount;
+                }
+                if (playerCountElement) {
+                    playerCountElement.setAttribute('data-player-count', data.playerCount);
+                }
+                
+                console.log(`Player count updated to: ${data.playerCount}`);
+            }
+
+            function onError(message) {
+                console.error("Server error:", message);
+            }
+
+            function updateSessionInfo() {
+                fetch(`/Session/GetSessionData/${sessionId}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        const playerCountDisplay = document.getElementById('playerCountDisplay');
+                        const playerCountElement = document.querySelector('[data-player-count]');
+                        const previousCount = parseInt(playerCountElement?.getAttribute('data-player-count') || '0');
+                        
+                        if (data.playerCount !== previousCount) {
+                            console.log(`Player count changed from ${previousCount} to ${data.playerCount}`);
+                            
+                            if (playerCountDisplay) {
+                                playerCountDisplay.textContent = data.playerCount;
+                            }
+                            if (playerCountElement) {
+                                playerCountElement.setAttribute('data-player-count', data.playerCount);
+                            }
+                        }
+                    })
+                    .catch(err => console.error('Error updating session info:', err));
+            }
+
+            function setupFallbackPolling() {
+                console.log("Setting up fallback polling for session updates");
+                updateInterval = setInterval(() => {
+                    updateSessionInfo();
+                }, 5000);
+            }
+
+            window.addEventListener('beforeunload', function() {
+                if (connection) {
+                    connection.stop();
+                }
+                if (updateInterval) {
+                    clearInterval(updateInterval);
+                }
+            });
+
+            // ============================================
+            // ROUND START AND GAME FLOW
+            // ============================================
+
+            // Round start functionality
+            window.startRound = function(sessionId, questionId, points) {
+                // Show confirmation dialog
+                const question = document.querySelector(`[data-question-id="${questionId}"]`);
+                if (!question) return;
+                
+                const questionText = question.getAttribute('data-question-text');
+                const categoryName = question.getAttribute('data-category-name');
+                
+                // Create and show modal
+                showQuestionModal({
+                    sessionId: sessionId,
+                    questionId: questionId,
+                    categoryName: categoryName,
+                    questionText: questionText,
+                    points: points
+                });
+            };            function showQuestionModal(data) {
+                const html = `
+                    <div class="modal fade" id="roundStartModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+                        <div class="modal-dialog modal-dialog-centered modal-lg">
+                            <div class="modal-content shadow-lg">
+                                <div class="modal-header bg-primary text-white d-none" id="startHeader">
+                                    <h5 class="modal-title">
+                                        <i class="bi bi-play-circle"></i> Start Round
+                                    </h5>
+                                </div>
+                                <div class="modal-header bg-success text-white d-none" id="timerHeader">
+                                    <div class="d-flex justify-content-between align-items-center w-100">
+                                        <h5 class="modal-title mb-0">
+                                            <i class="bi bi-play-fill"></i> Round in Progress
+                                        </h5>
+                                        <div class="timer-display" id="timerDisplay" style="font-size: 2.5rem; font-weight: bold; color: #ffc107;">30s</div>
+                                    </div>
+                                </div>
+                                <div class="modal-body" id="modalBody">
+                                    <div class="text-center" id="startContent">
+                                        <h2 class="mb-4 text-primary"><strong>${data.points} Points</strong></h2>
+                                        <button type="button" class="btn btn-primary btn-lg" onclick="confirmStartRound('${data.sessionId}', '${data.questionId}')">
+                                            <i class="bi bi-play-circle-fill"></i> Start Round
+                                        </button>
+                                    </div>                                    <div id="timerContent" style="display:none;">
+                                        <div class="text-center">
+                                            <h3 class="mb-4 text-primary"><strong>${data.points} Points</strong></h3>
+                                            <div class="question-display" style="background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); padding: 3rem 2rem; border-radius: 12px; min-height: 200px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                                                <h4 class="mb-0">${data.questionText}</h4>
+                                            </div>                                            <div class="mt-4" id="playerAnswerSection" style="display:none;">
+                                                <div class="input-group input-group-lg">
+                                                    <input type="text" class="form-control" id="playerAnswerInput" placeholder="Enter your answer..." aria-label="Player answer">
+                                                    <button class="btn btn-success" type="button" id="submitAnswerBtn" onclick="submitPlayerAnswer()">
+                                                        <i class="bi bi-check-circle"></i> Submit Answer
+                                                    </button>
+                                                </div>
+                                                <small class="text-muted d-block mt-2" id="answerStatus"></small>
+                                            </div>
+                                            <div id="answerSection" style="display:none;">
+                                                <div class="alert alert-success" role="alert" style="border-radius: 8px;">
+                                                    <h5 class="mb-3"><i class="bi bi-check-circle"></i> Correct Answer</h5>
+                                                    <p class="h3 mb-0 text-success" id="correctAnswerDisplay"></p>
+                                                </div>
+                                                <div class="mt-4">
+                                                    <h5 class="mb-3">Player Responses:</h5>
+                                                    <div id="playerResponsesList" style="max-height: 400px; overflow-y: auto;">
+                                                    </div>
+                                                </div>
+                                            </div>                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer" id="gameModalFooter">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Remove existing modal if any
+                $('#roundStartModal').remove();
+                
+                // Add new modal to DOM and show
+                $('body').append(html);
+                new bootstrap.Modal(document.getElementById('roundStartModal'), { 
+                    backdrop: 'static', 
+                    keyboard: false 
+                }).show();
+                
+                // Store modal reference globally
+                window.currentStartModal = bootstrap.Modal.getInstance(document.getElementById('roundStartModal'));
+                window.currentRoundStartData = data;
+            }
+
+            // Define confirmStartRound outside the IIFE to make it globally accessible
+            window.confirmStartRound = function(sessionId, questionId) {
+                console.log('Starting round with question:', questionId);
+                
+                // Switch from start view to timer view
+                $('#startHeader').addClass('d-none');
+                $('#timerHeader').removeClass('d-none');
+                $('#startContent').hide();
+                $('#timerContent').show();
+                
+                // Initialize game session client
+                const sessionPlayerId = 'admin'; // Mark as admin for now
+                const playerNickname = 'Admin';
+                
+                if (!window.gameClient) {
+                    window.gameClient = new GameSessionClient(sessionId, sessionPlayerId, playerNickname, true);
+                    window.gameClient.initialize().then(() => {
+                        // Join as admin
+                        window.gameClient.joinAsAdmin();
+                        
+                        // Select the question to start the round
+                        window.gameClient.selectQuestion(questionId);
+                    });
+                } else {
+                    // Already connected, just select question
+                    window.gameClient.selectQuestion(questionId);
+                }
+            };            // Setup event handlers for game flow
+            window.onQuestionSelected = function(data) {
+                console.log('Question selected, showing game modal:', data);
+                // If roundStartModal is open, don't create a new modal - just update the existing one
+                if (window.currentStartModal && document.getElementById('roundStartModal')) {
+                    updateRoundStartModalForGameFlow(data);
+                } else {
+                    // Only create gameModal if roundStartModal doesn't exist
+                    showGameModal(data);
+                }
+            };
+
+            window.onAnswerRevealed = function(data) {
+                console.log('Answers revealed:', data);
+                updateGameModalWithAnswers(data);
+            };
+
+            /**
+             * Update the round start modal to show game flow (timer and question)
+             * Reuses the existing modal instead of creating a new one
+             */
+            function updateRoundStartModalForGameFlow(questionData) {
+                // Update the timer display
+                const timerDisplay = document.getElementById('timerDisplay');
+                if (timerDisplay) {
+                    timerDisplay.textContent = questionData.timerSeconds || 30;
+                    timerDisplay.style.color = '#ffc107';
+                }
+
+                // Show answer input for non-admin players in the existing modal
+                if (!window.gameClient || !window.gameClient.isAdmin) {
+                    const playerAnswerSection = document.getElementById('playerAnswerSection');
+                    if (playerAnswerSection) {
+                        playerAnswerSection.style.display = 'block';
+                        const answerInput = document.getElementById('playerAnswerInput');
+                        if (answerInput) {
+                            answerInput.focus();
+                        }
+                    }
+                }
+
+                console.log('Updated round start modal for game flow');
+            }
+
+            /**
+             * Submit player answer during the active round
+             */
+            window.submitPlayerAnswer = async function() {
+                const answerInput = document.getElementById('playerAnswerInput');
+                const answerStatus = document.getElementById('answerStatus');
+                const submitBtn = document.getElementById('submitAnswerBtn');
+                
+                if (!answerInput.value.trim()) {
+                    answerStatus.textContent = 'Please enter an answer';
+                    answerStatus.style.color = '#dc3545';
+                    return;
+                }
+                
+                try {
+                    // Disable input while submitting
+                    submitBtn.disabled = true;
+                    answerInput.disabled = true;
+                    
+                    // Submit answer via GameSessionClient
+                    if (window.gameClient) {
+                        await window.gameClient.submitAnswer(answerInput.value.trim());
+                        
+                        // Show success message
+                        answerStatus.textContent = '✓ Answer submitted! Waiting for timer...';
+                        answerStatus.style.color = '#28a745';
+                        
+                        // Clear input
+                        answerInput.value = '';
+                        
+                        // Re-enable for next attempt if needed
+                        setTimeout(() => {
+                            submitBtn.disabled = false;
+                            answerInput.disabled = false;
+                        }, 500);
+                    }
+                } catch (error) {
+                    console.error('Error submitting answer:', error);
+                    answerStatus.textContent = 'Error submitting answer: ' + error.message;
+                    answerStatus.style.color = '#dc3545';
+                    submitBtn.disabled = false;
+                    answerInput.disabled = false;
+                }
+            };
+
+            /**
+             * Shows the main game modal with 30-second timer and question
+             * Uses jQuery for smooth animations
+             */
+            function showGameModal(questionData) {
+                const html = `
+                    <div class="modal fade" id="gameModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+                        <div class="modal-dialog modal-dialog-centered modal-lg">
+                            <div class="modal-content shadow-lg">
+                                <div class="modal-header bg-success text-white">
+                                    <div class="d-flex justify-content-between align-items-center w-100">
+                                        <div>
+                                            <h5 class="modal-title mb-0">
+                                                <i class="bi bi-play-fill"></i> Round in Progress
+                                            </h5>
+                                            <small class="text-white-50">${questionData.categoryName}</small>
+                                        </div>
+                                        <div class="timer-display" id="timerDisplay" style="font-size: 2.5rem; font-weight: bold; color: #ffc107; min-width: 100px; text-align: right;">
+                                            ${questionData.timerSeconds}s
+                                        </div>
+                                    </div>
+                                </div>                                <div class="modal-body" id="gameModalBody">
+                                    <div class="text-center mb-4">
+                                        <h3 class="mb-3 text-primary"><strong>${questionData.points} Points</strong></h3>
+                                        <div class="question-display" style="background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); padding: 3rem 2rem; border-radius: 12px; min-height: 180px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                                            <h4 class="mb-0">${questionData.questionText}</h4>
+                                        </div>
+                                    </div>
+                                    <div id="playerGameAnswerSection" style="display:none;" class="mt-4">
+                                        <div class="input-group input-group-lg">
+                                            <input type="text" class="form-control" id="gamePlayerAnswerInput" placeholder="Enter your answer..." aria-label="Player answer">
+                                            <button class="btn btn-success" type="button" id="gameSubmitAnswerBtn" onclick="submitGamePlayerAnswer()">
+                                                <i class="bi bi-check-circle"></i> Submit
+                                            </button>
+                                        </div>
+                                        <small class="text-muted d-block mt-2" id="gameAnswerStatus"></small>
+                                    </div>
+                                    <div id="answerSection" style="display:none;">
+                                        <div class="alert alert-success" role="alert" style="border-radius: 8px;">
+                                            <h5 class="mb-3"><i class="bi bi-check-circle"></i> Correct Answer</h5>
+                                            <p class="h3 mb-0 text-success" id="correctAnswerDisplay"></p>
+                                        </div>
+                                        <div class="mt-4">
+                                            <h5 class="mb-3">Player Responses:</h5>
+                                            <div id="playerResponsesList" style="max-height: 400px; overflow-y: auto;">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer" id="gameModalFooter">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Remove existing modal if any
+                $('#gameModal').remove();
+                
+                // Add new modal to DOM
+                $('body').append(html);
+                
+                // Show modal with jQuery
+                const $gameModal = $('#gameModal');
+                $gameModal.on('shown.bs.modal', function() {
+                    console.log('Game modal shown');
+                });
+                
+                new bootstrap.Modal(document.getElementById('gameModal'), { 
+                    backdrop: 'static', 
+                    keyboard: false 
+                }).show();
+                  // Store modal reference globally
+                window.currentGameModal = bootstrap.Modal.getInstance(document.getElementById('gameModal'));
+                window.currentRoundData = questionData;
+                
+                // Show answer input for non-admin players
+                if (!window.gameClient || !window.gameClient.isAdmin) {
+                    $('#playerGameAnswerSection').show();
+                    $('#gamePlayerAnswerInput').focus();
+                }
+            }
+
+            /**
+             * Updates game modal with answers and admin controls
+             * Uses jQuery for DOM manipulation
+             */            function updateGameModalWithAnswers(data) {
+                const $timerDisplay = $('#timerDisplay');
+                const $answerSection = $('#answerSection');
+                const $playerAnswerSection = $('#playerGameAnswerSection');
+                const $playerResponsesList = $('#playerResponsesList');
+                const $gameModalFooter = $('#gameModalFooter');
+                
+                // Hide timer and player answer section, show answers with jQuery fade effect
+                $timerDisplay.fadeOut(300);
+                $playerAnswerSection.fadeOut(300);
+                $answerSection.fadeIn(500);
+                
+                // Show correct answer
+                $('#correctAnswerDisplay').text(data.answer);
+                
+                // Build player responses list with admin selection buttons
+                $playerResponsesList.empty();
+                
+                if (data.submittedAnswers.length === 0) {
+                    $playerResponsesList.html('<p class="text-muted text-center py-5"><strong>No answers submitted</strong></p>');
+                } else {
+                    data.submittedAnswers.forEach((submission, index) => {
+                        const responseHtml = `
+                            <div class="card mb-3 response-card" style="border-left: 4px solid #667eea; transition: all 0.3s ease;">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start gap-3">
+                                        <div class="flex-grow-1">
+                                            <h6 class="card-subtitle mb-2"><strong><i class="bi bi-person-fill"></i> ${submission.playerNickname}</strong></h6>
+                                            <p class="card-text" style="font-size: 1.1rem; color: #495057;">"${submission.playerAnswer}"</p>
+                                        </div>
+                                        <button class="btn btn-sm btn-success mark-correct-btn" onclick="markAnswerCorrect('${data.roundId}', '${submission.roundAnswerId}', '${submission.playerNickname}')" style="white-space: nowrap;">
+                                            <i class="bi bi-check-circle"></i> Correct
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        $playerResponsesList.append(responseHtml);
+                    });
+                }
+                
+                // Add control buttons
+                const footerHtml = `
+                    <button type="button" class="btn btn-warning" onclick="markAnswerCorrect('${data.roundId}', null, 'No One')" style="margin-right: auto;">
+                        <i class="bi bi-x-circle"></i> No Correct Answer
+                    </button>
+                    <button type="button" class="btn btn-primary" id="nextRoundBtn" style="display:none;">
+                        <i class="bi bi-arrow-right-circle"></i> Next Round
+                    </button>
+                `;
+                $gameModalFooter.html(footerHtml);
+            }
+
+            /**
+             * Mark an answer as correct and award points
+             */
+            window.markAnswerCorrect = async function(roundId, roundAnswerId, playerName) {
+                try {
+                    const response = await fetch('/Session/MarkAnswerCorrect', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            roundId: roundId,
+                            roundAnswerId: roundAnswerId
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        console.log('Answer marked:', result);
+                        
+                        // Disable all answer buttons and show which one was marked
+                        if (roundAnswerId) {
+                            $('.mark-correct-btn').each(function() {
+                                $(this).prop('disabled', true).addClass('btn-secondary').removeClass('btn-success');
+                            });
+                            
+                            // Find and highlight the correct one
+                            event.target.closest('.btn-success, .btn-secondary')
+                                ?.classList.add('btn-success');
+                        } else {
+                            // No correct answer case
+                            $('.mark-correct-btn').each(function() {
+                                $(this).prop('disabled', true).addClass('btn-secondary').removeClass('btn-success');
+                            });
+                        }
+                        
+                        // Show the "Next Round" button with fade-in
+                        const $nextRoundBtn = $('#nextRoundBtn');
+                        $nextRoundBtn.fadeIn(300);
+                        $nextRoundBtn.on('click', function() {
+                            if (window.currentGameModal) {
+                                window.currentGameModal.hide();
+                                // Cleanup after modal is hidden
+                                $('#gameModal').on('hidden.bs.modal', function() {
+                                    $('#gameModal').remove();
+                                });
+                            }
+                        });
+                        
+                        // Show result message with Bootstrap alert
+                        const alertHtml = `
+                            <div class="alert alert-success alert-dismissible fade show" role="alert" style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+                                <i class="bi bi-check-circle"></i> <strong>✓ ${playerName}</strong> marked as correct!
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        `;
+                        $('body').append(alertHtml);
+                        
+                        // Auto-dismiss after 3 seconds
+                        setTimeout(() => {
+                            $('.alert').fadeOut(300, function() {
+                                $(this).remove();
+                            });
+                        }, 3000);
+                    } else {
+                        alert('Error marking answer');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error marking answer');
+                }
+            };
+
+            /**
+             * Submit player answer from the game modal
+             */
+            window.submitGamePlayerAnswer = async function() {
+                const answerInput = document.getElementById('gamePlayerAnswerInput');
+                const answerStatus = document.getElementById('gameAnswerStatus');
+                const submitBtn = document.getElementById('gameSubmitAnswerBtn');
+                
+                if (!answerInput.value.trim()) {
+                    answerStatus.textContent = 'Please enter an answer';
+                    answerStatus.style.color = '#dc3545';
+                    return;
+                }
+                
+                try {
+                    // Disable input while submitting
+                    submitBtn.disabled = true;
+                    answerInput.disabled = true;
+                    
+                    // Submit answer via GameSessionClient
+                    if (window.gameClient) {
+                        await window.gameClient.submitAnswer(answerInput.value.trim());
+                        
+                        // Show success message
+                        answerStatus.textContent = '✓ Answer submitted! Waiting for results...';
+                        answerStatus.style.color = '#28a745';
+                        
+                        // Clear input
+                        answerInput.value = '';
+                        
+                        // Disable until next round
+                        submitBtn.style.display = 'none';
+                        answerInput.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error('Error submitting answer:', error);
+                    answerStatus.textContent = 'Error: ' + error.message;
+                    answerStatus.style.color = '#dc3545';
+                    submitBtn.disabled = false;
+                    answerInput.disabled = false;
+                }
+            };
+        })();
+    </script>
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/playboard.css" asp-append-version="true" />
+    <style>
+        .jeopardy-board {
+            overflow-x: auto;
+            margin-bottom: 2rem;
+        }
+
+        .board-wrapper {
+            display: flex;
+            flex-direction: column;
+            min-width: 100%;
+        }
+
+        .board-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .board-header {
+            margin-bottom: 12px;
+        }        .board-cell {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .question-btn {
+            width: 100%;
+            height: 100px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-size: 1.8rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            position: relative;
+        }
+
+        .question-btn:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.2);
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        }        .question-btn:active {
+            transform: translateY(-2px);
+        }
+
+        .question-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }        .question-btn.completed {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            opacity: 0.8;
+        }
+
+        .check-mark {
+            font-size: 3rem;
+            font-weight: bold;
+            color: white;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .board-cell-empty {
+            width: 100%;
+            height: 100px;
+            background: #f0f0f0;
+            border-radius: 6px;
+        }
+
+        .category-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }        .points-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .question-btn-wrapper {
+            width: 100%;
+            padding: 12px;
+            background: white;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .question-btn-wrapper.empty {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .question-btn-wrapper.answered {
+            background-color: #e8f5e9;
+            border-color: #4caf50;
+            position: relative;
+        }
+
+        .question-info {
+            width: 100%;
+        }
+
+        .question-preview {
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .answer-info {
+            margin-bottom: 6px;
+            color: #666;
+        }
+
+        .player-response {
+            margin-bottom: 6px;
+            padding-top: 6px;
+            border-top: 1px solid #ddd;
+        }        .points-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1) !important;
+        }
+
+        .input-group-sm .form-control {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        .input-group-sm .btn {
+            padding: 0.25rem 0.5rem;
+        }
+    </style>
+}
+``` 

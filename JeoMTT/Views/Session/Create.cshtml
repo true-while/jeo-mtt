@@ -1,0 +1,246 @@
+@{
+    ViewData["Title"] = "Create Game Session - " + ViewBag.GameName;
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-lg">
+                <div class="card-header bg-success text-white">
+                    <h3 class="mb-0">
+                        <i class="bi bi-play-circle"></i> Start New Session
+                    </h3>
+                </div>                <div class="card-body p-5">                    <div class="mb-4">
+                        <h5 class="text-muted">Game</h5>
+                        <p class="h4 text-primary">@ViewBag.GameName</p>
+                    </div>
+
+                    <form id="createSessionForm" method="post" action="@Url.Action("Create")">
+                        <input type="hidden" id="gameIdInput" name="gameId" value="@ViewBag.GameId" />
+
+                        <div class="alert alert-primary" role="alert">
+                            <h6 class="alert-heading">
+                                <i class="bi bi-people"></i> Creating a Session
+                            </h6>
+                            <p class="mb-0">
+                                You'll create a unique join code that other players can use to join your game session.
+                            </p>
+                        </div>
+
+                        <div class="alert alert-info" role="alert">
+                            <h6 class="alert-heading">
+                                <i class="bi bi-clock"></i> Session Duration
+                            </h6>
+                            <p class="mb-0">
+                                Your session will be active for <strong>2 hours</strong>. After that, it will be automatically archived.
+                            </p>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg" id="submitBtn">
+                                <i class="bi bi-play"></i> Start Playing
+                            </button>
+                            <a href="@Url.Action("PlayBoard", "JeoGame", new { id = ViewBag.GameId })" 
+                               class="btn btn-secondary btn-lg">
+                                <i class="bi bi-x"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+
+                    <div id="errorAlert" class="alert alert-danger mt-3" role="alert" style="display: none;">
+                        <i class="bi bi-exclamation-circle"></i> <span id="errorMessage"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Session Info Card -->
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h6 class="card-title">What to expect:</h6>
+                    <ul class="list-unstyled">
+                        <li><i class="bi bi-check-circle text-success"></i> Answer questions from each category</li>
+                        <li><i class="bi bi-check-circle text-success"></i> Earn points for correct answers</li>
+                        <li><i class="bi bi-check-circle text-success"></i> Track your score in real-time</li>
+                        <li><i class="bi bi-check-circle text-success"></i> Session timer updates automatically</li>
+                        <li><i class="bi bi-check-circle text-success"></i> Sessions auto-archive after 2 hours</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>        (function() {
+            const form = document.getElementById('createSessionForm');
+            const submitBtn = document.getElementById('submitBtn');
+            const errorAlert = document.getElementById('errorAlert');
+            const errorMessage = document.getElementById('errorMessage');
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Starting...';
+
+                try {
+                    const gameIdInput = document.querySelector('input[id="gameIdInput"]');
+                    const gameId = gameIdInput?.value;
+
+                    console.log('=== Session Creation Debug ===');
+                    console.log('GameId value:', gameId);
+                    console.log('GameId type:', typeof gameId);
+                    
+                    // Validate gameId
+                    if (!gameId || gameId.trim() === '') {
+                        throw new Error('GameId is empty. Please reload the page and try again.');
+                    }
+
+                    // Simple GUID validation regex
+                    const guidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                    if (!guidRegex.test(gameId)) {
+                        throw new Error(`Invalid GameId format: ${gameId}. Expected a valid GUID.`);
+                    }
+
+                    const formData = new URLSearchParams({
+                        'gameId': gameId
+                    });
+
+                    console.log('Sending form data:', formData.toString());
+
+                    const response = await fetch('/Session/Create', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: formData
+                    });
+
+                    console.log('Create session response status:', response.status);
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        console.log('Session created successfully:', data);
+                        
+                        // Track to Application Insights
+                        if (window.appInsights) {
+                            window.appInsights.trackEvent({
+                                name: 'SessionCreated',
+                                properties: {
+                                    'sessionId': data.gameSessionId,
+                                    'gameId': gameId,
+                                    'joinCode': data.joinCode
+                                }
+                            });
+                            console.log('Event tracked to Application Insights: SessionCreated');
+                        }                        // Redirect to session details to show join code
+                        window.location.href = `/Session/SessionDetails/${data.gameSessionId}`;
+                    } else {
+                        let errorText = '';
+                        try {
+                            errorText = await response.text();
+                        } catch (e) {
+                            errorText = 'Unable to parse error response';
+                        }
+                        
+                        const errorMsg = `Failed to create session: HTTP ${response.status} - ${errorText}`;
+                        
+                        console.error(errorMsg);
+                        console.error('Response body:', errorText);
+                        console.error('Response status:', response.status);
+                        console.error('Response statusText:', response.statusText);
+
+                        // Track error to Application Insights
+                        if (window.appInsights) {
+                            window.appInsights.trackEvent({
+                                name: 'SessionCreationFailed',
+                                properties: {
+                                    'gameId': gameId,
+                                    'statusCode': response.status.toString(),
+                                    'statusText': response.statusText,
+                                    'errorMessage': errorText || 'Unknown error'
+                                }
+                            });
+                            console.log('Event tracked to Application Insights: SessionCreationFailed');
+                        }
+
+                        showError(errorText || `Failed to create session (HTTP ${response.status})`);
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="bi bi-play"></i> Start Playing';
+                    }
+                } catch (error) {
+                    const errorMsg = `Error creating session: ${error.message}`;
+                    console.error(errorMsg);
+                    console.error('Full error details:', error);
+
+                    // Track exception to Application Insights
+                    if (window.appInsights) {
+                        window.appInsights.trackException({
+                            exception: error,
+                            severityLevel: window.AI ? window.AI.SeverityLevel.Error : 2,
+                            properties: {
+                                'context': 'SessionCreation',
+                                'errorType': error.name,
+                                'errorStack': error.stack
+                            }
+                        });
+                        console.log('Exception tracked to Application Insights');
+                    }
+
+                    showError('Error: ' + error.message);
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="bi bi-play"></i> Start Playing';
+                }
+            });
+
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorAlert.style.display = 'block';
+                
+                // Log error to console
+                console.warn('User-facing error displayed:', message);
+                
+                // Track to Application Insights if available
+                if (window.appInsights) {
+                    window.appInsights.trackEvent({
+                        name: 'SessionCreationUserError',
+                        properties: {
+                            'message': message
+                        }
+                    });
+                }
+                
+                window.scrollTo(0, 0);
+            }
+        })();
+    </script>
+}
+
+@section Styles {
+    <style>
+        .card {
+            border: none;
+            border-radius: 0.5rem;
+        }
+
+        .card-header {
+            border-radius: 0.5rem 0.5rem 0 0;
+        }
+
+        .form-control {
+            border-radius: 0.375rem;
+        }
+
+        .btn {
+            border-radius: 0.375rem;
+        }
+
+        .list-unstyled li {
+            padding: 0.5rem 0;
+        }
+
+        .list-unstyled i {
+            margin-right: 0.5rem;
+        }
+    </style>
+}

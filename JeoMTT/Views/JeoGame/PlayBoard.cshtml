@@ -65,15 +65,22 @@
     </div>    <!-- Action Buttons -->
     <div class="row mt-4">
         <div class="col-md-12">
-            <div class="d-flex justify-content-between">
-                <a href="@Url.Action("ManageCategories", "JeoGame", new { id = Model.Id })" class="btn btn-secondary btn-lg">
-                    <i class="bi bi-arrow-left"></i> Back to Categories
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <a href="@Url.Action("ManageCategories", "JeoGame", new { id = Model.Id })" class="btn btn-secondary btn-lg">
+                        <i class="bi bi-arrow-left"></i> Back to Categories
+                    </a>
+                </div>
+                <a href="@Url.Action("Create", "Session", new { gameId = Model.Id })" class="btn btn-success btn-lg">
+                    <i class="bi bi-play-circle"></i> Create Session
                 </a>
-                <a href="@Url.Action("Index", "JeoGame")" class="btn btn-primary btn-lg">
-                    <i class="bi bi-house"></i> Back to Games
-                </a>
+                <div>
+                    <a href="@Url.Action("Index", "JeoGame")" class="btn btn-primary btn-lg">
+                        <i class="bi bi-house"></i> Back to Games
+                    </a>
+                </div>
             </div>
-        </div>    </div>
+        </div></div>
 </div>
 
 <!-- Question Modal -->

@@ -15,7 +15,10 @@
         setupQuestionModal(gameId);
         setupQuestionButtons();
         trackPageView(gameId);
-    }    function initializeQuillEditor() {        // Initialize Quill editor with restricted formats
+    }
+
+    function initializeQuillEditor() {
+        // Initialize Quill editor with restricted formats
         quillEditor = new Quill('#questionEditor', {
             theme: 'snow',
             placeholder: 'Enter your question here...',
@@ -36,7 +39,9 @@
                 }
             },
             formats: ['bold', 'italic', 'underline', 'list']
-        });        // Update character count on text change
+        });
+
+        // Update character count on text change
         quillEditor.on('text-change', function() {
             const text = quillEditor.getText().trim();
             const charCount = document.getElementById('charCount');
@@ -56,7 +61,9 @@
             const text = (e.clipboardData || window.clipboardData).getData('text/plain');
             quillEditor.insertText(quillEditor.getSelection().index, text);
         }, false);
-    }function setupQuestionModal(gameId) {
+    }
+
+    function setupQuestionModal(gameId) {
         const questionModal = new bootstrap.Modal(document.getElementById('questionModal'), {});
         const questionForm = document.getElementById('questionForm');
         const questionTextInput = document.getElementById('questionText');
@@ -89,7 +96,9 @@
                 await loadQuestion(btn);
             });
         });
-    }    async function loadQuestion(btn) {
+    }
+
+    async function loadQuestion(btn) {
         const currentCategoryId = btn.dataset.categoryId; // Keep as string (Guid)
         const currentPoints = parseInt(btn.dataset.points);
 
@@ -127,7 +136,9 @@
 
         questionError.style.display = 'none';
         window.questionModalInstance?.show();
-    }async function saveQuestion(categoryIdInput, pointsInput, answerText, questionError, questionModal) {
+    }
+
+    async function saveQuestion(categoryIdInput, pointsInput, answerText, questionError, questionModal) {
         // Extract text from Quill editor
         const qText = quillEditor.getText().trim();
         const aText = answerText.value.trim();
@@ -148,9 +159,11 @@
         if (!aText) {
             showError(questionError, 'Answer is required');
             return;
-        }        try {
+        }
+
+        try {
             const token = document.querySelector('[name="__RequestVerificationToken"]')?.value;
-            
+
             const response = await fetch('/JeoGame/SaveQuestion', {
                 method: 'POST',
                 headers: {

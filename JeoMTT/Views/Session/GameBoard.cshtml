@@ -1,0 +1,610 @@
+@model JeoMTT.Models.GameSession
+
+@{
+    ViewData["Title"] = "Game Board - " + Model.Game?.Name;
+    var currentPlayerScore = Model.SessionPlayers?.FirstOrDefault()?.Score ?? 0;
+    var topPlayerScore = Model.SessionPlayers?.OrderByDescending(sp => sp.Score).FirstOrDefault()?.Score ?? 0;
+    var isAdmin = ViewBag.IsAdmin == true;
+    var sessionId = Model.Id.ToString();
+    var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+}
+
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1>@Model.Game?.Name</h1>
+                    <p class="text-muted">Session Code: <strong>@Model.JoinCode</strong></p>
+                </div>
+                <div>
+                    <a href="@Url.Action("Index", "Session")" class="btn btn-secondary btn-lg">
+                        <i class="bi bi-arrow-left"></i> Back to Sessions
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Score Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <h6 class="card-title text-muted">Your Score</h6>
+                    <h2 class="card-text text-primary" id="currentScore">@currentPlayerScore</h2>
+                    <small class="text-muted">pts</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <h6 class="card-title text-muted">Leading Score</h6>
+                    <h2 class="card-text text-warning" id="topScore">@topPlayerScore</h2>
+                    <small class="text-muted">pts</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <h6 class="card-title text-muted">Time Remaining</h6>
+                    @{
+                        var timeRemaining = Model.ExpiresAt - DateTime.UtcNow;
+                        var isExpired = timeRemaining.TotalSeconds <= 0;
+                    }
+                    @if (Model.Status == JeoMTT.Models.GameSessionStatus.Active && !isExpired)
+                    {
+                        <h2 class="card-text text-info">
+                            <span id="timeRemaining">@($"{(int)timeRemaining.TotalHours}h {timeRemaining.Minutes}m")</span>
+                        </h2>
+                    }
+                    else
+                    {
+                        <h2 class="card-text text-danger">Expired</h2>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Jeopardy Board -->
+    <div class="row">
+        <div class="col-md-12">
+            @if (Model.Game?.Categories != null && Model.Game.Categories.Count > 0)
+            {
+                <div class="jeopardy-board">
+                    <div class="board-wrapper">
+                        <!-- Category Headers -->
+                        <div class="board-row board-header">
+                            @foreach (var category in Model.Game.Categories)
+                            {
+                                <div class="board-cell category-header">
+                                    <strong>@category.Name</strong>
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Question Grid (5 rows = 5 point values) -->
+                        @for (int pointRow = 0; pointRow < 5; pointRow++)
+                        {
+                            var points = new[] { 100, 200, 300, 400, 500 }[pointRow];
+                            <div class="board-row">
+                                @foreach (var category in Model.Game.Categories)                                {
+                                    var question = category.Questions?.FirstOrDefault(q => q.Points == points);
+                                    // Check if question has been answered via GameRounds
+                                    var questionRound = question != null ? Model.Rounds?.FirstOrDefault(gr => gr.QuestionId == question.Id && (gr.Status == GameRoundStatus.Ended || gr.Status == GameRoundStatus.Answered)) : null;
+                                    var answered = questionRound != null;
+                                    
+                                    <div class="board-cell">
+                                        @if (question != null)
+                                        {                                            <button type="button" 
+                                                    class="question-btn @(answered ? "answered correct" : "")"
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#questionModal"
+                                                    data-question-id="@question.Id"
+                                                    data-question-text="@question.Text"
+                                                    data-correct-answer="@question.Answer"
+                                                    data-points="@question.Points"                                @(answered ? "disabled" : "")>
+                                                @if (answered)
+                                                {
+                                                    <div class="check-mark">
+                                                        <i class="bi bi-check-circle-fill text-success"></i>
+                                                        }
+                                                    </div>                                }
+                                else
+                                {
+                                    <span class="points-value">@points</span>
+                                }
+                            </button>
+                                        }
+                                        else
+                                        {
+                                            <div class="board-cell-empty"></div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info" role="alert">
+                    <strong>No questions available yet.</strong> Please check back later.
+                </div>
+            }
+        </div>
+    </div>    <!-- Players Scoreboard -->
+    <div class="row mt-5">
+        <div class="col-md-12">
+            <h3 class="mb-3">Players Scoreboard</h3>
+            @if (Model.SessionPlayers != null && Model.SessionPlayers.Count > 0)
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>#</th>
+                                <th>Player Name</th>
+                                <th>Score</th>
+                                <th>Joined</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{
+                                var ranking = 1;
+                            }
+                            @foreach (var sessionPlayer in Model.SessionPlayers.OrderByDescending(sp => sp.Score))
+                            {
+                                <tr>
+                                    <td>
+                                        @if (ranking == 1)
+                                        {
+                                            <span class="badge bg-warning"><i class="bi bi-trophy-fill"></i> @ranking</span>
+                                        }
+                                        else if (ranking == 2)
+                                        {
+                                            <span class="badge bg-secondary"><i class="bi bi-award-fill"></i> @ranking</span>
+                                        }
+                                        else if (ranking == 3)
+                                        {
+                                            <span class="badge bg-warning text-dark">@ranking</span>
+                                        }
+                                        else
+                                        {
+                                            <span>@ranking</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <strong>@sessionPlayer.PlayerNickname</strong>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">@sessionPlayer.Score pts</span>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted" data-utc="@sessionPlayer.JoinedAt.ToUniversalTime().ToString("O")" data-format="datetime">@sessionPlayer.JoinedAt.ToString("g")</small>
+                                    </td>
+                                </tr>
+                                ranking++;
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <p class="text-muted">No players joined yet.</p>
+            }
+        </div>
+    </div>
+</div>
+
+    <!-- Admin Answer Control Panel (if admin) -->
+    @if (isAdmin)
+    {
+        <div class="row mt-5">
+            <div class="col-md-12">
+                <div class="card bg-light border-dark">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0">Admin Panel - Round Control</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="roundControlPanel">
+                            <p class="text-muted">
+                                <strong>Current Round:</strong> <span id="currentRoundNumber">No active round</span>
+                                <strong class="ms-3">Timer:</strong> <span id="roundTimer" class="badge bg-danger">--:--</span>
+                            </p>
+                            <div id="answersPanel" class="mt-3" style="display: none;">
+                                <h6>Player Answers Submitted:</h6>
+                                <div id="answersList" class="list-group mb-3">
+                                    <!-- Answers will be listed here -->
+                                </div>
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-info" id="showAnswerBtn">Show Answer</button>
+                                    <button type="button" class="btn btn-warning" id="endRoundBtn">End Round</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Answer Review & Marking Modal -->
+        <div class="modal fade" id="answerReviewModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-dark text-white">
+                        <h5 class="modal-title">Answer Review & Marking</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <h6 class="text-muted">Correct Answer:</h6>
+                            <p id="correctAnswerDisplay" class="h6 text-success"></p>
+                        </div>
+                        <div id="answersForReview" class="list-group">
+                            <!-- Player answers will be shown here -->
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-success" id="completeReviewBtn">Complete Review & Continue</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }    else
+    {
+        <!-- Player Answer Submission Modal -->
+        <div id="playerAnswerPanel" class="position-fixed bottom-0 end-0 p-3" style="display: none; z-index: 1050;">
+            <div class="card border-primary" style="width: 400px;">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0">Submit Your Answer</h6>
+                </div>
+                <div class="card-body">
+                    <p id="roundQuestionText" class="mb-3"></p>
+                    <form id="playerAnswerForm">
+                        <div class="mb-3">
+                            <input type="text" class="form-control" id="playerAnswerInput" placeholder="Your answer..." required>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Submit Answer</button>
+                        </div>
+                    </form>
+                    <div id="roundTimer2" class="mt-3 text-center">
+                        <strong>Time Left: <span id="timerDisplay">30</span>s</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+<!-- Question Modal -->
+<div class="modal fade" id="questionModal" tabindex="-1" aria-labelledby="questionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="questionModalLabel">Answer Question</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-4">
+                    <h6 class="text-muted">Question</h6>
+                    <p id="questionText" class="h5"></p>
+                </div>
+                <div class="mb-4">
+                    <h6 class="text-muted">Points</h6>
+                    <span id="questionPoints" class="badge bg-primary" style="font-size: 1.1rem;"></span>
+                </div>
+                <form id="answerForm">
+                    <div class="mb-3">
+                        <label for="playerAnswer" class="form-label">Your Answer</label>
+                        <input type="text" class="form-control form-control-lg" id="playerAnswer" required placeholder="Enter your answer...">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="submitAnswerBtn">Submit Answer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/lib/signalr/signalr.js"></script>
+    <script src="~/js/game-session-client.js"></script>
+    <script>
+        let currentQuestionId = null;
+        const sessionId = '@Model.Id';
+        const sessionPlayerId = '@(Model.SessionPlayers?.FirstOrDefault()?.Id ?? Guid.Empty)';
+        const playerNickname = '@(Model.SessionPlayers?.FirstOrDefault()?.PlayerNickname ?? "Player")';
+        
+        let gameClient;
+        let submitInProgress = false;
+
+        // Initialize SignalR connection
+        async function initializeGameSession() {
+            gameClient = new GameSessionClient(sessionId, sessionPlayerId, playerNickname);
+            await gameClient.initialize();
+        }
+
+        // Setup event handlers
+        window.onPlayerJoined = function(data) {
+            const message = data.message || `${data.playerNickname} joined!`;
+            console.log("Player joined:", message);
+            // Optionally show a toast notification
+            showNotification(message, 'info');
+        };
+
+        window.onAnswerReceived = function(data) {
+            console.log("Verifying answer...");
+            showNotification('Verifying your answer...', 'warning');
+        };
+
+        window.onAnswerVerified = function(data) {
+            submitInProgress = false;
+            const resultClass = data.isCorrect ? 'success' : 'danger';
+            const resultMessage = data.message;
+            
+            // Show result with visual feedback
+            showNotification(resultMessage, resultClass === 'success' ? 'success' : 'danger');
+            
+            // Update score
+            document.getElementById('currentScore').textContent = data.newScore;
+            
+            // Mark question as answered
+            const button = document.querySelector(`[data-question-id="${currentQuestionId}"]`);
+            if (button) {
+                button.disabled = true;
+                button.classList.add(data.isCorrect ? 'answered correct' : 'answered incorrect');
+                button.innerHTML = data.isCorrect 
+                    ? '<i class="bi bi-check-circle-fill text-success"></i>'
+                    : '<i class="bi bi-x-circle-fill text-danger"></i>';
+            }
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('questionModal'));
+            if (modal) modal.hide();
+        };
+
+        window.onSessionUpdated = function(data) {
+            // Update leaderboard
+            updateLeaderboard(data.leaderboard);
+            
+            // Update time remaining
+            updateTimeRemaining(data.timeRemaining);
+            
+            // Update top score
+            document.getElementById('topScore').textContent = data.topPlayerScore;
+        };
+
+        window.onAnswerValidationError = function(message) {
+            submitInProgress = false;
+            showNotification('Error: ' + message, 'danger');
+        };
+
+        window.onServerError = function(message) {
+            submitInProgress = false;
+            showNotification('Server Error: ' + message, 'danger');
+        };
+
+        // Show notification toast
+        function showNotification(message, type = 'info') {
+            const alertClass = `alert-${type === 'success' ? 'success' : type === 'danger' ? 'danger' : 'info'}`;
+            const alertHtml = `
+                <div class="alert ${alertClass} alert-dismissible fade show" role="alert" style="position: fixed; top: 20px; right: 20px; z-index: 1050; min-width: 300px;">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            const alertContainer = document.createElement('div');
+            alertContainer.innerHTML = alertHtml;
+            document.body.appendChild(alertContainer);
+            
+            setTimeout(() => {
+                alertContainer.querySelector('.alert')?.remove();
+            }, 5000);
+        }
+
+        // Update leaderboard
+        function updateLeaderboard(leaderboard) {
+            const tbody = document.querySelector('tbody');
+            if (!tbody) return;
+            
+            let html = '';
+            leaderboard.forEach(player => {
+                const badgeClass = player.rank === 1 ? 'bg-warning' : player.rank === 2 ? 'bg-secondary' : player.rank === 3 ? 'bg-warning text-dark' : '';
+                const badge = player.rank <= 3 ? `<span class="badge ${badgeClass}">${player.rank}</span>` : player.rank;
+                
+                html += `
+                    <tr>
+                        <td>${badge}</td>
+                        <td><strong>${player.playerNickname}</strong></td>
+                        <td><span class="badge bg-primary">${player.score} pts</span></td>
+                        <td><small class="text-muted">${formatDate(player.joinedAt)}</small></td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        // Update time remaining with countdown
+        function updateTimeRemaining(seconds) {
+            const element = document.getElementById('timeRemaining');
+            if (element) {
+                const hours = Math.floor(seconds / 3600);
+                const minutes = Math.floor((seconds % 3600) / 60);
+                const secs = Math.floor(seconds % 60);
+                element.textContent = `${hours}h ${minutes}m ${secs}s`;
+            }
+        }
+
+        // Format date for display
+        function formatDate(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleString();
+        }
+
+        // Modal event listeners
+        const questionModal = document.getElementById('questionModal');
+        questionModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            currentQuestionId = button.getAttribute('data-question-id');
+            
+            document.getElementById('questionText').textContent = button.getAttribute('data-question-text');
+            document.getElementById('questionPoints').textContent = '$' + button.getAttribute('data-points');
+            document.getElementById('playerAnswer').value = '';
+        });
+
+        // Submit answer via SignalR
+        document.getElementById('submitAnswerBtn').addEventListener('click', async function() {
+            if (submitInProgress) {
+                showNotification('Please wait for the previous answer to be verified', 'warning');
+                return;
+            }
+
+            const playerAnswer = document.getElementById('playerAnswer').value.trim();
+            
+            if (!playerAnswer) {
+                showNotification('Please enter an answer', 'danger');
+                return;
+            }
+
+            submitInProgress = true;
+            this.disabled = true;
+            this.textContent = 'Submitting...';
+
+            try {
+                await gameClient.submitAnswer(currentQuestionId, playerAnswer);
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('Error submitting answer: ' + error.message, 'danger');
+                submitInProgress = false;
+                this.disabled = false;
+                this.textContent = 'Submit Answer';
+            }
+        });
+
+        // Update time remaining every second (client-side countdown)
+        let timeRemainingSeconds = @((int)(Model.ExpiresAt - DateTime.UtcNow).TotalSeconds);
+        setInterval(function() {
+            timeRemainingSeconds = Math.max(0, timeRemainingSeconds - 1);
+            updateTimeRemaining(timeRemainingSeconds);
+            
+            if (timeRemainingSeconds <= 0) {
+                showNotification('Session has expired', 'warning');
+            }
+        }, 1000);
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', initializeGameSession);
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            if (gameClient) {
+                gameClient.disconnect();
+            }
+        });
+    </script>
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/playboard.css" asp-append-version="true" />
+    <style>
+        .jeopardy-board {
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            background-color: #001a4d;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+
+        .board-wrapper {
+            display: contents;
+        }
+
+        .board-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 8px;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        .board-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100px;
+            background-color: #003d99;
+            border: 2px solid #0055d4;
+            border-radius: 4px;
+            padding: 8px;
+            color: white;
+            font-weight: bold;
+        }
+
+        .category-header {
+            background-color: #0033cc;
+            border-color: #0055d4;
+            font-size: 14px;
+            text-align: center;
+            word-break: break-word;
+        }
+
+        .board-cell-empty {
+            width: 100%;
+            height: 100%;
+        }
+
+        .question-btn {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            border: none;
+            background: none;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .question-btn:hover:not(:disabled) {
+            transform: scale(1.05);
+            box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.2);
+        }
+
+        .question-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .question-btn.answered.correct {
+            background-color: rgba(40, 167, 69, 0.5);
+        }
+
+        .question-btn.answered.incorrect {
+            background-color: rgba(220, 53, 69, 0.5);
+        }
+
+        .points-value {
+            font-size: 28px;
+        }
+
+        .check-mark {
+            font-size: 32px;
+        }
+    </style>
+}

@@ -1,0 +1,184 @@
+@{
+    ViewData["Title"] = "Join Game Session";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-lg">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">
+                        <i class="bi bi-door-open"></i> Join Game Session
+                    </h3>
+                </div>                <div class="card-body p-5">
+                    <div class="mb-4">
+                        <p class="text-muted">Enter your nickname to join the game session.</p>
+                    </div>
+
+                    <form id="joinSessionForm">
+                        <div class="mb-4">
+                            <label for="playerNickname" class="form-label">
+                                <strong>Your Nickname <span class="text-danger">*</span></strong>
+                            </label>
+                            <input type="text" 
+                                   class="form-control form-control-lg" 
+                                   id="playerNickname" 
+                                   name="playerNickname" 
+                                   placeholder="Enter your nickname..." 
+                                   required 
+                                   maxlength="50"
+                                   pattern="[a-zA-Z0-9 _-]+"
+                                   title="Nickname can only contain letters, numbers, spaces, hyphens, and underscores" />
+                            <small class="form-text text-muted d-block mt-2">
+                                <i class="bi bi-info-circle"></i> Your nickname will be displayed during the game.
+                            </small>                        </div>
+
+                        <!-- Hidden input for session code (auto-populated from URL) -->
+                        <input type="hidden" 
+                               id="joinCode" 
+                               name="joinCode" 
+                               required />
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                                <i class="bi bi-play"></i> Join Session
+                            </button>
+                            <a href="@Url.Action("Index", "Home")" class="btn btn-secondary btn-lg">
+                                <i class="bi bi-x"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+
+                    <div id="errorAlert" class="alert alert-danger mt-3" role="alert" style="display: none;">
+                        <i class="bi bi-exclamation-circle"></i> <span id="errorMessage"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function() {
+            const form = document.getElementById('joinSessionForm');
+            const nicknameInput = document.getElementById('playerNickname');
+            const codeInput = document.getElementById('joinCode');
+            const submitBtn = document.getElementById('submitBtn');
+            const errorAlert = document.getElementById('errorAlert');
+            const errorMessage = document.getElementById('errorMessage');
+
+            // Auto-populate join code from URL query parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            const codeFromUrl = urlParams.get('code');
+            
+            if (codeFromUrl) {
+                codeInput.value = codeFromUrl.toUpperCase();
+                console.log('Session code auto-populated from URL:', codeFromUrl);
+                
+                // Focus on nickname input when page loads with code
+                nicknameInput.focus();
+            }
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const nickname = nicknameInput.value.trim();
+                const code = codeInput.value.trim().toUpperCase();
+
+                // Validation
+                if (!nickname) {
+                    showError('Nickname is required');
+                    return;
+                }
+
+                if (nickname.length > 50) {
+                    showError('Nickname cannot exceed 50 characters');
+                    return;
+                }
+
+                if (!/^[a-zA-Z0-9 _-]+$/.test(nickname)) {
+                    showError('Nickname can only contain letters, numbers, spaces, hyphens, and underscores');
+                    return;
+                }
+
+                if (!code || code.length !== 10) {
+                    showError('Session code must be 10 characters');
+                    return;
+                }
+
+                if (!/^[A-Z0-9]{10}$/.test(code)) {
+                    showError('Session code must contain only uppercase letters and numbers');
+                    return;
+                }
+
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Joining...';
+
+                try {
+                    const response = await fetch('/Session/JoinSession', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            joinCode: code,
+                            playerNickname: nickname
+                        })
+                    });                    if (response.ok) {
+                        const data = await response.json();
+                        // Redirect to game board with session ID
+                        window.location.href = `/Session/GameBoard/${data.gameSessionId}`;
+                    } else if (response.status === 400 || response.status === 404) {
+                        try {
+                            const data = await response.json();
+                            showError(data.message || 'Session not found. Please check and try again.');
+                        } catch {
+                            const errorText = await response.text();
+                            showError(errorText || 'Invalid session code. Please check and try again.');
+                        }
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="bi bi-play"></i> Join Session';
+                    } else {
+                        const errorText = await response.text();
+                        showError(errorText || 'Failed to join session');
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="bi bi-play"></i> Join Session';
+                    }
+                } catch (error) {
+                    console.error('Error joining session:', error);
+                    showError('Error: ' + error.message);
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="bi bi-play"></i> Join Session';
+                }
+            });
+
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorAlert.style.display = 'block';
+                window.scrollTo(0, 0);
+            }
+        })();
+    </script>
+}
+
+@section Styles {
+    <style>
+        .card {
+            border: none;
+            border-radius: 0.5rem;
+        }
+
+        .card-header {
+            border-radius: 0.5rem 0.5rem 0 0;
+        }
+
+        .form-control {
+            border-radius: 0.375rem;
+        }
+
+        .btn {
+            border-radius: 0.375rem;
+        }
+    </style>
+}

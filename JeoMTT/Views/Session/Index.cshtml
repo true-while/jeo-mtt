@@ -1,0 +1,325 @@
+@model IEnumerable<JeoMTT.Models.GameSession>
+
+@{
+    ViewData["Title"] = "Game Sessions";
+}
+
+<div class="container-fluid mt-4">    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1>Game Sessions</h1>
+                    <p class="text-muted">Manage and monitor active game sessions</p>
+                </div>                <div class="gap-2" style="display: flex; gap: 0.5rem;">
+                    <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#newSessionModal">
+                        <i class="bi bi-plus-circle"></i> New Session
+                    </button>
+                    <a href="@Url.Action("Index", "JeoGame")" class="btn btn-secondary btn-lg">
+                        <i class="bi bi-arrow-left"></i> Back to Games
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div><!-- Status Filter -->
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="btn-group" role="group">
+                <a href="@Url.Action("Index", new { status = "all" })" 
+                   class="btn btn-outline-secondary @(ViewBag.CurrentStatus == "all" ? "active" : "")">
+                    All Sessions
+                </a>
+                <a href="@Url.Action("Index", new { status = "Active" })" 
+                   class="btn btn-outline-success @(ViewBag.CurrentStatus == "Active" ? "active" : "")">
+                    <span class="badge bg-success">Active</span>
+                </a>
+                <a href="@Url.Action("Index", new { status = "Archived" })" 
+                   class="btn btn-outline-secondary @(ViewBag.CurrentStatus == "Archived" ? "active" : "")">
+                    <span class="badge bg-secondary">Archived</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sessions Table -->
+    <div class="row">
+        <div class="col-md-12">
+            @if (Model.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Game</th>
+                                <th>Player</th>
+                                <th>Score</th>
+                                <th>Status</th>
+                                <th>Started</th>
+                                <th>Expires In</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var session in Model)
+                            {
+                                var timeRemaining = session.ExpiresAt - DateTime.Now;
+                                var isExpired = timeRemaining.TotalSeconds <= 0;
+                                  <tr>
+                                    <td>
+                                        <strong>@session.Game?.Name</strong>
+                                    </td>
+                                    <td>
+                                        @session.JoinCode
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">@session.SessionPlayers.Count players</span>
+                                    </td><td>
+                                        @{
+                                            var statusBadgeClass = session.Status switch
+                                            {
+                                                JeoMTT.Models.GameSessionStatus.Active => "bg-success",
+                                                JeoMTT.Models.GameSessionStatus.Archived => "bg-secondary",
+                                                _ => "bg-secondary"
+                                            };
+                                        }
+                                        <span class="badge @statusBadgeClass">@session.Status</span>
+                                    </td>
+                                    <td>
+                                        <small>@session.StartedAt.ToString("g")</small>
+                                    </td>
+                                    <td>
+                                        @if (session.Status == JeoMTT.Models.GameSessionStatus.Active && !isExpired)
+                                        {
+                                            <span class="badge bg-info">@($"{(int)timeRemaining.TotalMinutes}m {timeRemaining.Seconds}s")</span>
+                                        }
+                                        else if (session.Status == JeoMTT.Models.GameSessionStatus.Active && isExpired)
+                                        {
+                                            <span class="badge bg-danger">Expired</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">—</span>
+                                        }
+                                    </td>                                    <td>
+                                        <a href="@Url.Action("Details", new { id = session.Id })" class="btn btn-sm btn-info">
+                                            <i class="bi bi-eye"></i> View
+                                        </a>
+                                        @if (session.Status == JeoMTT.Models.GameSessionStatus.Active)
+                                        {
+                                            <form method="post" action="@Url.Action("EndSession")" style="display: inline;">
+                                                <input type="hidden" name="id" value="@session.Id" />
+                                                @Html.AntiForgeryToken()
+                                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to end this session?');">
+                                                    <i class="bi bi-stop"></i> End
+                                                </button>
+                                            </form>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info" role="alert">
+                    <strong>No sessions found.</strong> Create a new game and start a session to get started!
+                </div>
+            }
+        </div>    </div>
+</div>
+
+<!-- New Session Modal -->
+<div class="modal fade" id="newSessionModal" tabindex="-1" aria-labelledby="newSessionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="newSessionModalLabel">
+                    <i class="bi bi-plus-circle"></i> Create New Session
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="newSessionForm">
+                    <div class="mb-3">
+                        <label for="gameSelect" class="form-label">
+                            <strong>Select Game <span class="text-danger">*</span></strong>
+                        </label>
+                        <select class="form-select form-select-lg" id="gameSelect" required>
+                            <option value="">-- Choose a game --</option>
+                        </select>
+                        <small class="form-text text-muted d-block mt-2">
+                            <i class="bi bi-info-circle"></i> Select the game you want to create a session for.
+                        </small>
+                    </div>
+
+                    <div class="alert alert-info mb-0" role="alert">
+                        <h6 class="alert-heading">
+                            <i class="bi bi-clock"></i> Session Duration
+                        </h6>
+                        <p class="mb-0">
+                            The session will be active for <strong>2 hours</strong>. Players can join using the session code.
+                        </p>
+                    </div>
+
+                    <div class="alert alert-primary mt-3" role="alert">
+                        <h6 class="alert-heading">
+                            <i class="bi bi-link"></i> Share the Session Code
+                        </h6>
+                        <p class="mb-0">
+                            Once created, share the unique session code with your players so they can join.
+                        </p>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="submitNewSessionBtn">
+                    <i class="bi bi-play"></i> Create Session
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function() {
+            let games = [];
+            const gameSelect = document.getElementById('gameSelect');
+            const submitBtn = document.getElementById('submitNewSessionBtn');
+            const newSessionForm = document.getElementById('newSessionForm');
+            const newSessionModal = document.getElementById('newSessionModal');
+
+            // Load games when modal opens
+            newSessionModal.addEventListener('show.bs.modal', async () => {
+                if (games.length === 0) {
+                    await loadGames();
+                }
+            });
+
+            async function loadGames() {
+                try {
+                    const response = await fetch('/JeoGame/GetGamesJson');
+                    if (response.ok) {
+                        games = await response.json();
+                        populateGameSelect();
+                    } else {
+                        console.error('Failed to load games:', response.status);
+                        showModalError('Failed to load games');
+                    }
+                } catch (error) {
+                    console.error('Error loading games:', error);
+                    showModalError('Error loading games: ' + error.message);
+                }
+            }
+
+            function populateGameSelect() {
+                gameSelect.innerHTML = '<option value="">-- Choose a game --</option>';
+                games.forEach(game => {
+                    const option = document.createElement('option');
+                    option.value = game.id;
+                    option.textContent = game.name;
+                    gameSelect.appendChild(option);
+                });
+            }
+
+            submitBtn.addEventListener('click', async () => {
+                const gameId = gameSelect.value;
+
+                if (!gameId) {
+                    showModalError('Please select a game');
+                    return;
+                }
+
+                await createSession(gameId);
+            });            async function createSession(gameId) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Creating...';
+
+                try {
+                    console.log('Creating session for gameId:', gameId);
+
+                    const response = await fetch('/Session/Create', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: new URLSearchParams({
+                            'gameId': gameId
+                        })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (window.trackEvent) {
+                            trackEvent('SessionCreated', {
+                                'gameId': gameId,
+                                'joinCode': data.joinCode
+                            });
+                        }
+
+                        // Close modal and redirect to session details
+                        const modal = bootstrap.Modal.getInstance(newSessionModal);
+                        if (modal) modal.hide();
+                        
+                        window.location.href = `/Session/SessionDetails/${data.gameSessionId}`;
+                    } else {
+                        const errorText = await response.text();
+                        console.error('Create session failed:', response.status, errorText);
+                        showModalError(errorText || 'Failed to create session');
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="bi bi-play"></i> Create Session';
+                    }
+                } catch (error) {
+                    console.error('Error creating session:', error);
+                    showModalError('Error: ' + error.message);
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="bi bi-play"></i> Create Session';
+                }
+            }
+
+            function showModalError(message) {
+                const existingAlert = newSessionForm.querySelector('.alert-danger');
+                if (existingAlert) existingAlert.remove();
+
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-danger mt-3';
+                alertDiv.innerHTML = `<i class="bi bi-exclamation-circle"></i> ${message}`;
+                newSessionForm.appendChild(alertDiv);
+
+                setTimeout(() => {
+                    alertDiv.remove();
+                }, 5000);
+            }
+        })();
+    </script>
+}
+
+@section Styles {
+    <style>
+        .table-hover tbody tr:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+
+        .badge {
+            font-size: 0.85rem;
+            padding: 0.5rem 0.75rem;
+        }
+
+        .btn-group {
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .modal-content {
+            border: none;
+            border-radius: 0.5rem;
+        }
+
+        .modal-header {
+            border-radius: 0.5rem 0.5rem 0 0;
+        }
+    </style>
+}
