@@ -33,7 +33,10 @@ namespace JeoMTT.Controllers
             {
                 _telemetryClient.TrackEvent("JeoGameIndexRequested");
 
-                var games = await _context.JeoGames.ToListAsync();
+                var games = await _context.JeoGames
+                    .Include(g => g.Categories)
+                    .ThenInclude(c => c.Questions)
+                    .ToListAsync();
                 
                 _telemetryClient.TrackEvent("JeoGamesRetrieved", new Dictionary<string, string>
                 {

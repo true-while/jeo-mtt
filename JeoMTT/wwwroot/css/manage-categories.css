@@ -1,49 +1,99 @@
 /* Manage Categories Styles */
 
+.manage-categories-container {
+    background-color: #F6F7FB;
+    min-height: 100vh;
+    padding: 20px 0;
+}
+
 .card {
-    border-radius: 0.5rem;
-    transition: box-shadow 0.3s ease;
+    border: none;
+    border-radius: 8px;
+    background-color: #FFFFFF;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
-.card:hover {
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-}
-
-.progress {
-    height: 25px;
-    border-radius: 0.5rem;
-    background-color: #e9ecef;
-}
-
-.progress-bar {
-    background-color: #0d6efd;
+.card-header {
+    border-radius: 8px 8px 0 0;
+    padding: 1.25rem;
     font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
+    background-color: #E3F2FD !important;
+    color: #4650E3;
+    border: none;
 }
 
-.badge {
-    font-size: 0.875rem;
-    padding: 0.5rem 0.75rem;
+.form-label {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #2F3367;
+}
+
+.text-danger {
+    font-weight: 700;
+    color: #E5533D;
+}
+
+.form-control {
+    background-color: #FFFFFF;
+    border-color: #C9CEE8;
+    color: #1F235A;
+    font-size: 0.95rem;
+}
+
+.form-control::placeholder {
+    color: #9AA0C3;
+}
+
+.form-control:focus {
+    background-color: #FFFFFF;
+    border-color: #4650E3;
+    color: #1F235A;
+    box-shadow: 0 0 0 0.2rem rgba(70, 80, 227, 0.15);
 }
 
 .btn {
     font-weight: 500;
     padding: 0.5rem 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background-color: #4650E3;
+    border-color: #4650E3;
+    color: #FFFFFF;
+}
+
+.btn-primary:hover {
+    background-color: #3640C9;
+    border-color: #3640C9;
+    color: #FFFFFF;
+}
+
+.btn-primary:disabled,
+.btn-primary.disabled {
+    background-color: #A9ADEB;
+    border-color: #A9ADEB;
+    color: #FFFFFF;
 }
 
 .input-group .btn {
     padding: 0.5rem 1.25rem;
 }
 
-.border-success {
-    border-left: 4px solid #198754 !important;
+.alert-warning {
+    background-color: #FFF8E1;
+    border-color: #F5A623;
+    color: #C99700;
 }
 
-.text-success {
-    font-weight: 600;
+.alert-info {
+    background-color: #E3F2FD;
+    border-color: #4650E3;
+    color: #2C3E7E;
+}
+
+.text-muted {
+    color: #6B6FA3 !important;
 }
 
 /* Categories Grid - Single Row as Squares */

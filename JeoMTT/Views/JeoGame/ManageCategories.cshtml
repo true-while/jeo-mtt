@@ -4,124 +4,105 @@
     ViewData["Title"] = "Create Question Groups";
 }
 
-<div class="container mt-4">
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <h1>@ViewData["Title"]</h1>
-            <p class="text-muted">Add up to 5 question groups (categories) for your game</p>
-        </div>
-    </div>
+<link rel="stylesheet" href="~/css/manage-categories.css" asp-append-version="true" />
 
-
-
-    <!-- Add Category Form -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">Add a New Group</h5>
-                </div>
-                <div class="card-body">
-                    @if (Model.Categories.Count >= 5)
-                    {
-                        <div class="alert alert-warning" role="alert">
-                            <i class="bi bi-exclamation-triangle"></i>
-                            <strong>Maximum limit reached!</strong> You have already created 5 groups. This is the maximum allowed.
-                        </div>
-                    }
-
-                    <form id="addCategoryForm" class="needs-validation" data-game-id="@Model.Id">
-                        <div class="mb-3">
-                            <label for="categoryName" class="form-label">Group Name <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <input type="text" class="form-control" id="categoryName" name="categoryName" 
-                                       placeholder="e.g., Science, History, Sports..." required
-                                       @(Model.Categories.Count >= 5 ? "disabled" : "") />
-                                <button class="btn btn-primary" type="submit" id="addCategoryBtn"
-                                        @(Model.Categories.Count >= 5 ? "disabled" : "")>
-                                    <i class="bi bi-plus-circle"></i> Add Group
-                                </button>
-                            </div>
-                            <small class="text-muted">Enter a unique name for your question group.</small>
-                            <div id="categoryError" class="invalid-feedback d-block" style="display: none;"></div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Categories List -->
-    @if (Model.Categories.Any())
-    {
+<div class="manage-categories-container">
+    <div class="container mt-4">
         <div class="row">
-            <div class="col-md-12">
+            <div class="col-md-8 offset-md-2">
                 <div class="card shadow-sm">
-                    <div class="card-header bg-success text-white">
-                        <h5 class="mb-0">Game Groups</h5>
+                    <div class="card-header">
+                        <h4 class="mb-0">@ViewData["Title"]</h4>
                     </div>
                     <div class="card-body">
-                        <form id="reorderCategoriesForm" method="post" action="@Url.Action("ReorderCategories", "JeoGame")">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" name="gameId" value="@Model.Id" />
-                            <div class="categories-grid" id="categoriesGrid">
-                                @foreach (var category in Model.Categories.OrderBy(c => c.DisplayOrder))
-                                {
-                                    <div class="category-square draggable" draggable="true" data-category-id="@category.Id">
-                                        <span class="drag-handle" title="Drag to reorder" style="cursor:grab;position:absolute;left:8px;top:8px;font-size:1.2rem;color:#fff;opacity:0.7;"><i class="bi bi-grip-vertical"></i></span>
-                                        <button type="button" class="remove-category-btn" 
-                                                data-category-id="@category.Id" data-category-name="@category.Name"
-                                                title="Remove this group">
-                                            <i class="bi bi-x-circle"></i>
-                                        </button>
-                                        <div class="category-name">@category.Name</div>
-                                        <input type="hidden" name="categoryOrder" value="@category.Id" />
-                                    </div>
-                                }
+                        <p class="text-muted">Add up to 5 question groups (categories) for your game</p>
+
+                        <!-- Add Category Form -->
+                        @if (Model.Categories.Count >= 5)
+                        {
+                            <div class="alert alert-warning" role="alert">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                <strong>Maximum limit reached!</strong> You have already created 5 groups. This is the maximum allowed.
+                            </div>
+                        }
+
+                        <form id="addCategoryForm" class="needs-validation category-form" data-game-id="@Model.Id">
+                            <div class="mb-3">
+                                <label for="categoryName" class="form-label">Group Name <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="categoryName" name="categoryName" 
+                                           placeholder="e.g., Science, History, Sports..." required
+                                           @(Model.Categories.Count >= 5 ? "disabled" : "") />
+                                    <button class="btn btn-primary" type="submit" id="addCategoryBtn"
+                                            @(Model.Categories.Count >= 5 ? "disabled" : "")>
+                                        <i class="bi bi-plus-circle"></i> Add Group
+                                    </button>
+                                </div>
+                                <small class="text-muted">Enter a unique name for your question group.</small>
+                                <div id="categoryError" class="invalid-feedback d-block category-error"></div>
                             </div>
                         </form>
+
+                        <!-- Categories List -->
+                        @if (Model.Categories.Any())
+                        {
+                            <div class="categories-section">
+                                <h6 class="mt-4 mb-3">Your Groups</h6>
+                                <form id="reorderCategoriesForm" method="post" action="@Url.Action("ReorderCategories", "JeoGame")">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="gameId" value="@Model.Id" />
+                                    <div class="categories-grid" id="categoriesGrid">
+                                        @foreach (var category in Model.Categories.OrderBy(c => c.DisplayOrder))
+                                        {
+                                            <div class="category-square draggable" draggable="true" data-category-id="@category.Id">
+                                            <span class="drag-handle" title="Drag to reorder"><i class="bi bi-grip-vertical"></i></span>
+                                                <button type="button" class="remove-category-btn" 
+                                                        data-category-id="@category.Id" data-category-name="@category.Name"
+                                                        title="Remove this group">
+                                                    <i class="bi bi-x-circle"></i>
+                                                </button>
+                                                <div class="category-name">@category.Name</div>
+                                                <input type="hidden" name="categoryOrder" value="@category.Id" />
+                                            </div>
+                                        }
+                                    </div>
+                                </form>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info mt-3" role="alert">
+                                <i class="bi bi-info-circle"></i>
+                                <strong>No groups yet!</strong> Add your first question group to get started.
+                            </div>
+                        }
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <a asp-action="GameList" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> Cancel
+                            </a>
+                            <div class="d-flex gap-2">
+                                <form method="post" action="@Url.Action("SaveAndReturnToGames", "JeoGame")" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="gameId" value="@Model.Id" />
+                                    <button type="submit" class="btn btn-primary" @(Model.Categories.Count == 0 ? "disabled" : "")>
+                                        <i class="bi bi-check-circle"></i> Save & Return to Games
+                                    </button>
+                                </form>
+                                <form method="post" action="@Url.Action("SaveAndContinueToBoard", "JeoGame")" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="gameId" value="@Model.Id" />
+                                    <button type="submit" class="btn btn-success" @(Model.Categories.Count == 0 ? "disabled" : "")>
+                                        <i class="bi bi-play-circle"></i> Continue to Board
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    }
-    else
-    {
-        <div class="row">
-            <div class="col-md-12">
-                <div class="alert alert-info" role="alert">
-                    <i class="bi bi-info-circle"></i>
-                    <strong>No groups yet!</strong> Add your first question group to get started.
-                </div>
-            </div>
-        </div>
-    }
-
-    <!-- Action Buttons -->
-    <div class="row mt-4">
-        <div class="col-md-12">
-            <div class="d-flex justify-content-between">
-                <a href="@Url.Action("Index", "JeoGame")" class="btn btn-secondary btn-lg">
-                    <i class="bi bi-arrow-left"></i> Cancel
-                </a>
-                <div class="d-flex gap-2">
-                    <form method="post" action="@Url.Action("SaveAndReturnToGames", "JeoGame")" class="d-inline">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="gameId" value="@Model.Id" />
-                        <button type="submit" class="btn btn-primary btn-lg" @(Model.Categories.Count == 0 ? "disabled" : "")>
-                            <i class="bi bi-check-circle"></i> Save & Return to Games
-                        </button>
-                    </form>
-                    <form method="post" action="@Url.Action("SaveAndContinueToBoard", "JeoGame")" class="d-inline">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="gameId" value="@Model.Id" />
-                        <button type="submit" class="btn btn-success btn-lg" @(Model.Categories.Count == 0 ? "disabled" : "")>
-                            <i class="bi bi-play-circle"></i> Continue to Board
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>    
     </div>
 </div>
 

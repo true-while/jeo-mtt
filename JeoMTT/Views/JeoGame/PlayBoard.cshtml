@@ -43,7 +43,7 @@
                                                 data-points="@points"
                                                 title="@question.Text - Answer: @question.Answer">
                                             <div class="question-preview">@question.Text</div>
-                                            <div class="check-mark">✓</div>
+                                            <div class="points-value">@points</div>
                                         </button>
                                     }
                                     else
@@ -107,7 +107,7 @@
                     
                     <div class="mb-3">
                         <label for="questionText" class="form-label">Question <span class="text-danger">*</span></label>
-                        <div id="questionEditor" class="quill-editor" style="height: 150px; background-color: white;"></div>
+                        <div id="questionEditor" class="quill-editor"></div>
                         <input type="hidden" id="questionText" name="questionText" />
                         <small class="text-muted d-block mt-1">
                             <span id="charCount">0</span>/200 characters
@@ -120,7 +120,7 @@
                                   placeholder="Enter the answer here..." required></textarea>
                     </div>
 
-                    <div id="questionError" class="alert alert-danger" role="alert" style="display: none;"></div>
+                    <div id="questionError" class="alert alert-danger question-error" role="alert"></div>
                 </form>
             </div>
             <div class="modal-footer">

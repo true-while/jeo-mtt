@@ -6,17 +6,21 @@
 
 <link rel="stylesheet" href="~/css/edit-game.css" />
 
-<div class="container mt-4">
-    <div class="row">
-        <div class="col-md-8 offset-md-2">
-            <div class="card shadow-sm">
-                <div class="card-header bg-warning text-dark">
-                    <h4 class="mb-0">@ViewData["Title"]</h4>
-                </div>
+<div class="edit-game-container">
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-8 offset-md-2">
+                <div class="card shadow-sm">
+                    <div class="card-header">
+                        <h4 class="mb-0">@ViewData["Title"]</h4>
+                    </div>
                 <div class="card-body">
-                    <div class="alert alert-info" role="alert">
-                        <i class="bi bi-info-circle"></i>
-                        <strong>Game ID:</strong> @Model.Id | <strong>Created:</strong> @Model.CreatedAt.ToString("MMM dd, yyyy HH:mm")
+                    <div class="game-info-header">
+                        <span class="game-info-label">Created:</span>
+                        <span class="game-info-value">@Model.CreatedAt.ToString("MMM dd, yyyy HH:mm")</span>
+                        <span class="game-info-separator">•</span>
+                        <span class="game-info-label">Author:</span>
+                        <span class="game-info-value">@Model.Author</span>
                     </div>
 
                     <form asp-action="EditGame" method="post" id="editGameForm">
@@ -69,7 +73,7 @@
                         </div>
 
                         <div class="d-flex justify-content-between mt-4">
-                            <a asp-action="Index" class="btn btn-secondary">
+                            <a asp-action="GameList" class="btn btn-secondary">
                                 <i class="bi bi-arrow-left"></i> Cancel
                             </a>
                             <div class="d-flex gap-2">
@@ -86,6 +90,7 @@
             </div>
         </div>
     </div>
+</div>
 </div>
 
 @section Scripts {
