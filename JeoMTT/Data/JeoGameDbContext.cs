@@ -1,9 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using JeoMTT.Models;
 
 namespace JeoMTT.Data
 {
-    public class JeoGameDbContext : DbContext
+    public class JeoGameDbContext : IdentityDbContext<ApplicationUser>
     {
         public JeoGameDbContext(DbContextOptions<JeoGameDbContext> options) 
             : base(options)
@@ -107,9 +108,7 @@ namespace JeoMTT.Data
 
                 // Unique constraint: One nickname per session
                 entity.HasIndex(e => new { e.GameSessionId, e.PlayerNickname }).IsUnique();            });            
-            // NOTE: PlayerAnswer entity removed - using GameRound and RoundAnswer for round-based game flow
-
-            // Configure GameRound entity
+            // NOTE: PlayerAnswer entity removed - using GameRound and RoundAnswer for round-based game flow            // Configure GameRound entity
             modelBuilder.Entity<GameRound>(entity =>
             {
                 entity.HasKey(e => e.Id);
@@ -118,12 +117,6 @@ namespace JeoMTT.Data
                 entity.Property(e => e.RoundNumber).IsRequired();
                 entity.Property(e => e.StartedAt).IsRequired();
                 entity.Property(e => e.Status).IsRequired();
-
-                // Foreign key to GameSession
-                entity.HasOne(e => e.GameSession)
-                    .WithMany()
-                    .HasForeignKey(e => e.GameSessionId)
-                    .OnDelete(DeleteBehavior.Cascade);
 
                 // Foreign key to Question
                 entity.HasOne(e => e.Question)

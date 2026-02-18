@@ -5,7 +5,8 @@ using JeoMTT.Models;
 using System.Diagnostics;
 
 namespace JeoMTT.Hubs
-{    /// <summary>
+{
+    /// <summary>
     /// Real-time hub for game session updates using SignalR
     /// Handles:
     /// - Player joining notifications
@@ -22,6 +23,10 @@ namespace JeoMTT.Hubs
         // Track session-connectionId mapping for disconnection handling
         private static readonly Dictionary<string, string> ConnectionToSessionMap = new();
         private static readonly Dictionary<string, string> ConnectionToNicknameMap = new();
+
+        // Track active round timers per session (sessionId -> (timerTask, roundId, expiryTime))
+        // This ensures all clients see the same synchronized countdown
+        private static readonly Dictionary<string, (Task? timerTask, string? roundId, DateTime expiryTime)> RoundTimers = new();
 
         public GameSessionHub(JeoGameDbContext context, ILogger<GameSessionHub> logger)
         {
@@ -96,9 +101,7 @@ namespace JeoMTT.Hubs
                         .CountAsync() + 1,
                     StartedAt = DateTime.UtcNow,
                     Status = GameRoundStatus.Active
-                };
-
-                _context.GameRounds.Add(gameRound);
+                };                _context.GameRounds.Add(gameRound);
                 await _context.SaveChangesAsync();
 
                 // Get the question details
@@ -115,6 +118,9 @@ namespace JeoMTT.Hubs
                     selectedAt = DateTime.UtcNow.ToString("O"),
                     timerSeconds = gameSession.QuestionTimerSeconds
                 });
+
+                // Start server-side timer for this round
+                await StartRoundTimer(parsedSessionId, gameRound.Id.ToString(), gameSession.QuestionTimerSeconds);
 
                 _logger.LogInformation($"Question {parsedQuestionId} selected for session {parsedSessionId}, round {gameRound.RoundNumber}");
             }
@@ -509,6 +515,76 @@ namespace JeoMTT.Hubs
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error broadcasting session updates on disconnection");
+            }
+        }        /// <summary>
+        /// Start a server-side timer for a round that broadcasts remaining time to all clients
+        /// Ensures all players and admins see the same synchronized countdown
+        /// </summary>
+        private async Task StartRoundTimer(Guid sessionId, string roundId, int timerSeconds)
+        {
+            try
+            {
+                // Cancel any existing timer for this session
+                if (RoundTimers.TryGetValue(sessionId.ToString(), out var existingTimer))
+                {
+                    // Timer will be replaced, no need to cleanup here
+                }
+
+                var expiryTime = DateTime.UtcNow.AddSeconds(timerSeconds);
+                var sessionIdStr = sessionId.ToString();
+
+                // Create the timer task - fire and forget pattern
+                var timerTask = Task.Run(async () =>
+                {
+                    try
+                    {
+                        while (DateTime.UtcNow < expiryTime)
+                        {
+                            var remainingSeconds = Math.Max(0, (int)(expiryTime - DateTime.UtcNow).TotalSeconds);
+
+                            // Broadcast timer update to all clients in the session
+                            await Clients.Group($"session-{sessionIdStr}").SendAsync("TimerUpdate", new
+                            {
+                                roundId = roundId,
+                                remainingSeconds = remainingSeconds,
+                                timestamp = DateTime.UtcNow.ToString("O")
+                            });
+
+                            if (remainingSeconds <= 0)
+                            {
+                                break;
+                            }
+
+                            // Update every 100ms for smooth countdown
+                            await Task.Delay(100);
+                        }
+
+                        // Timer expired - notify all clients to show answer
+                        await Clients.Group($"session-{sessionIdStr}").SendAsync("TimerExpired", new
+                        {
+                            roundId = roundId,
+                            expiredAt = DateTime.UtcNow.ToString("O")
+                        });
+
+                        _logger.LogInformation($"Timer expired for round {roundId} in session {sessionIdStr}");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"Error in round timer for session {sessionIdStr}");
+                    }
+                });
+
+                // Store the timer task
+                RoundTimers[sessionIdStr] = (timerTask, roundId, expiryTime);
+
+                // Await the timer start (fire and forget)
+                await Task.Yield();
+
+                _logger.LogInformation($"Started server-side timer for round {roundId} in session {sessionIdStr} ({timerSeconds} seconds)");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error starting round timer for session {sessionId}");
             }
         }
     }

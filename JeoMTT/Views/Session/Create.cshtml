@@ -16,6 +16,8 @@
                     </div>
 
                     <form id="createSessionForm" method="post" action="@Url.Action("Create")">
+                        @Html.AntiForgeryToken()
+                        
                         <input type="hidden" id="gameIdInput" name="gameId" value="@ViewBag.GameId" />
 
                         <div class="alert alert-primary" role="alert">

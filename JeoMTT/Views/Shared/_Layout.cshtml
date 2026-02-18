@@ -12,26 +12,47 @@
 </head>
 <body>
     <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-dark" style="background-color: #4650E3;">
             <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">JeoMTT</a>
+                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index" style="color: #FFFFFF; font-weight: bold;">JeoMTT</a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
+                        aria-expanded="false" aria-label="Toggle navigation" style="border-color: #FFFFFF;">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">                    <ul class="navbar-nav flex-grow-1">
+                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                    <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                            <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index" style="color: #FFFFFF;">Home</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="JeoGame" asp-action="GameList">Games</a>
+                            <a class="nav-link" asp-area="" asp-controller="JeoGame" asp-action="GameList" style="color: #FFFFFF;">Games</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Session" asp-action="SessionList">Sessions</a>
+                            <a class="nav-link" asp-area="" asp-controller="Session" asp-action="SessionList" style="color: #FFFFFF;">Sessions</a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-                        </li>
+                    </ul>
+                    <ul class="navbar-nav">
+                        @if (User?.Identity?.IsAuthenticated ?? false)
+                        {
+                            var nickname = User.FindFirst("Nickname")?.Value ?? User.Identity?.Name;
+                            <li class="nav-item">
+                                <span class="nav-link" style="color: #FFFFFF;">Welcome, @nickname</span>
+                            </li>
+                            <li class="nav-item">
+                                <form asp-area="" asp-controller="User" asp-action="Logout" method="post" style="display: inline;">
+                                    <button type="submit" class="nav-link btn btn-link" style="color: #FFFFFF;">Logout</button>
+                                </form>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" asp-area="" asp-controller="User" asp-action="Login" style="color: #FFFFFF;">Login</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" asp-area="" asp-controller="User" asp-action="Signup" style="color: #FFFFFF;">Sign Up</a>
+                            </li>
+                        }
                     </ul>
                 </div>
             </div>

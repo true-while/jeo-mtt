@@ -372,7 +372,7 @@
                 });
             };            function showQuestionModal(data) {
                 const html = `
-                    <div class="modal fade" id="roundStartModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+                    <div class="modal fade" id="roundStartModal" tabindex="-1" data-bs-backdrop="static">
                         <div class="modal-dialog modal-dialog-centered modal-lg">
                             <div class="modal-content shadow-lg">
                                 <div class="modal-header bg-primary text-white d-none" id="startHeader">
@@ -427,23 +427,24 @@
                         </div>
                     </div>
                 `;
-                
-                // Remove existing modal if any
+                  // Remove existing modal if any
                 $('#roundStartModal').remove();
                 
                 // Add new modal to DOM and show
                 $('body').append(html);
-                new bootstrap.Modal(document.getElementById('roundStartModal'), { 
-                    backdrop: 'static', 
-                    keyboard: false 
-                }).show();
                 
-                // Store modal reference globally
-                window.currentStartModal = bootstrap.Modal.getInstance(document.getElementById('roundStartModal'));
+                // Initially allow Esc to close (before question is shown)
+                const modalElement = document.getElementById('roundStartModal');
+                window.currentStartModal = new bootstrap.Modal(modalElement, { 
+                    backdrop: 'static', 
+                    keyboard: true  // Allow Esc to close before question shown
+                });
+                window.currentStartModal.show();
+                
+                // Store modal reference and data globally
                 window.currentRoundStartData = data;
-            }
-
-            // Define confirmStartRound outside the IIFE to make it globally accessible
+                window.isQuestionShown = false;
+            }            // Define confirmStartRound outside the IIFE to make it globally accessible
             window.confirmStartRound = function(sessionId, questionId) {
                 console.log('Starting round with question:', questionId);
                 
@@ -452,6 +453,24 @@
                 $('#timerHeader').removeClass('d-none');
                 $('#startContent').hide();
                 $('#timerContent').show();
+                
+                // Mark question as shown - disable Esc key
+                window.isQuestionShown = true;
+                if (window.currentStartModal) {
+                    // Update modal to disable keyboard (Esc) once question is shown
+                    window.currentStartModal._config.keyboard = false;
+                    
+                    // Add keydown listener to prevent Escape key from closing the modal
+                    const modalElement = document.getElementById('roundStartModal');
+                    if (modalElement) {
+                        modalElement.addEventListener('keydown', function(e) {
+                            if (e.key === 'Escape' && window.isQuestionShown) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                            }
+                        }, true);  // Use capture phase to intercept early
+                    }
+                }
                 
                 // Initialize game session client
                 const sessionPlayerId = 'admin'; // Mark as admin for now
@@ -470,7 +489,7 @@
                     // Already connected, just select question
                     window.gameClient.selectQuestion(questionId);
                 }
-            };            // Setup event handlers for game flow
+            };// Setup event handlers for game flow
             window.onQuestionSelected = function(data) {
                 console.log('Question selected, showing game modal:', data);
                 // If roundStartModal is open, don't create a new modal - just update the existing one
@@ -562,10 +581,9 @@
             /**
              * Shows the main game modal with 30-second timer and question
              * Uses jQuery for smooth animations
-             */
-            function showGameModal(questionData) {
+             */            function showGameModal(questionData) {
                 const html = `
-                    <div class="modal fade" id="gameModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+                    <div class="modal fade" id="gameModal" tabindex="-1" data-bs-backdrop="static">
                         <div class="modal-dialog modal-dialog-centered modal-lg">
                             <div class="modal-content shadow-lg">
                                 <div class="modal-header bg-success text-white">

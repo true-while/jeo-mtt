@@ -12,42 +12,16 @@
         </div>
     </div>
 
-    <!-- Game Info Card -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="card bg-light">
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h5 class="card-title">Game Name</h5>
-                            <p class="fs-5"><strong>@Model.Name</strong></p>
-                        </div>
-                        <div class="col-md-6">
-                            <h5 class="card-title">Author</h5>
-                            <p class="fs-5"><strong>@Model.Author</strong></p>
-                        </div>
-                    </div>
-                    @if (!string.IsNullOrEmpty(Model.Description))
-                    {
-                        <div class="row">
-                            <div class="col-md-12">
-                                <h5 class="card-title">Description</h5>
-                                <p class="fs-6">@Model.Description</p>
-                            </div>
-                        </div>
-                    }
-                </div>
-            </div>
-        </div>
-    </div>
+
 
     <!-- Add Category Form -->
     <div class="row mb-4">
-        <div class="col-md-8">
+        <div class="col-md-12">
             <div class="card shadow-sm">
                 <div class="card-header bg-primary text-white">
                     <h5 class="mb-0">Add a New Group</h5>
-                </div>                <div class="card-body">
+                </div>
+                <div class="card-body">
                     @if (Model.Categories.Count >= 5)
                     {
                         <div class="alert alert-warning" role="alert">
@@ -75,67 +49,37 @@
                 </div>
             </div>
         </div>
-
-        <!-- Progress Indicator -->
-        <div class="col-md-4">
-            <div class="card shadow-sm">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0">Progress</h5>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between mb-2">
-                            <span>Groups Created:</span>
-                            <span class="badge bg-primary">@Model.Categories.Count / 5</span>
-                        </div>                        <div class="progress">
-                            <div class="progress-bar" role="progressbar" 
-                                 style="width: @(Model.Categories.Count * 20)%"
-                                 aria-valuenow="@Model.Categories.Count" aria-valuemin="0" aria-valuemax="5">
-                                @(Model.Categories.Count * 20)%
-                            </div>
-                        </div>
-                    </div>
-                    <small class="text-muted">
-                        @if (Model.Categories.Count == 0)
-                        {
-                            <p>Start by adding your first group.</p>
-                        }
-                        else if (Model.Categories.Count < 5)
-                        {
-                            <p>@(5 - Model.Categories.Count) more group@((5 - Model.Categories.Count) != 1 ? "s" : "") can be added.</p>
-                        }
-                        else
-                        {
-                            <p>All 5 groups have been created!</p>
-                        }
-                    </small>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Categories List -->
     @if (Model.Categories.Any())
     {
-        <div class="row">            <div class="col-md-12">
+        <div class="row">
+            <div class="col-md-12">
                 <div class="card shadow-sm">
                     <div class="card-header bg-success text-white">
-                        <h5 class="mb-0">Created Groups</h5>
+                        <h5 class="mb-0">Game Groups</h5>
                     </div>
                     <div class="card-body">
-                        <div class="categories-grid">
-                            @foreach (var category in Model.Categories)
-                            {
-                                <div class="category-square">
-                                    <button type="button" class="remove-category-btn" 
-                                            data-category-id="@category.Id" data-category-name="@category.Name"
-                                            title="Remove this group">
-                                        <i class="bi bi-x-circle"></i>
-                                    </button>
-                                    <div class="category-name">@category.Name</div>
-                                </div>
-                            }
-                        </div>
+                        <form id="reorderCategoriesForm" method="post" action="@Url.Action("ReorderCategories", "JeoGame")">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="gameId" value="@Model.Id" />
+                            <div class="categories-grid" id="categoriesGrid">
+                                @foreach (var category in Model.Categories.OrderBy(c => c.DisplayOrder))
+                                {
+                                    <div class="category-square draggable" draggable="true" data-category-id="@category.Id">
+                                        <span class="drag-handle" title="Drag to reorder" style="cursor:grab;position:absolute;left:8px;top:8px;font-size:1.2rem;color:#fff;opacity:0.7;"><i class="bi bi-grip-vertical"></i></span>
+                                        <button type="button" class="remove-category-btn" 
+                                                data-category-id="@category.Id" data-category-name="@category.Name"
+                                                title="Remove this group">
+                                            <i class="bi bi-x-circle"></i>
+                                        </button>
+                                        <div class="category-name">@category.Name</div>
+                                        <input type="hidden" name="categoryOrder" value="@category.Id" />
+                                    </div>
+                                }
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -160,15 +104,25 @@
                 <a href="@Url.Action("Index", "JeoGame")" class="btn btn-secondary btn-lg">
                     <i class="bi bi-arrow-left"></i> Cancel
                 </a>
-                <form method="post" action="@Url.Action("FinishCategories", "JeoGame")" class="d-inline">
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="id" value="@Model.Id" />                    <button type="submit" class="btn btn-success btn-lg" @(Model.Categories.Count == 0 ? "disabled" : "")>
-                        <i class="bi bi-check-circle"></i> 
-                        @(Model.Categories.Count == 0 ? "Add Groups First" : "Continue to Board")
-                    </button>
-                </form>
+                <div class="d-flex gap-2">
+                    <form method="post" action="@Url.Action("SaveAndReturnToGames", "JeoGame")" class="d-inline">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="gameId" value="@Model.Id" />
+                        <button type="submit" class="btn btn-primary btn-lg" @(Model.Categories.Count == 0 ? "disabled" : "")>
+                            <i class="bi bi-check-circle"></i> Save & Return to Games
+                        </button>
+                    </form>
+                    <form method="post" action="@Url.Action("SaveAndContinueToBoard", "JeoGame")" class="d-inline">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="gameId" value="@Model.Id" />
+                        <button type="submit" class="btn btn-success btn-lg" @(Model.Categories.Count == 0 ? "disabled" : "")>
+                            <i class="bi bi-play-circle"></i> Continue to Board
+                        </button>
+                    </form>
+                </div>
             </div>
-        </div>    </div>
+        </div>    
+    </div>
 </div>
 
 @section Styles {
@@ -177,4 +131,128 @@
 
 @section Scripts {
     <script src="~/js/manage-categories.js" data-game-id="@Model.Id" asp-append-version="true"></script>
+    <script>
+        // Enhanced drag-and-drop reorder logic
+        const grid = document.getElementById('categoriesGrid');
+        let draggedElement = null;
+        let draggedFrom = null;
+        const gameId = '@Model.Id';
+
+        if (grid) {
+            // Add drag listeners to all draggable elements
+            function addDragListeners() {
+                const draggables = grid.querySelectorAll('.draggable');
+                draggables.forEach(item => {
+                    item.addEventListener('dragstart', handleDragStart, false);
+                    item.addEventListener('dragend', handleDragEnd, false);
+                });
+            }
+
+            // Add drop zone listeners to grid
+            grid.addEventListener('dragover', handleDragOver, false);
+            grid.addEventListener('drop', handleDrop, false);
+
+            function handleDragStart(e) {
+                draggedElement = this;
+                draggedFrom = Array.from(grid.children).indexOf(this);
+                this.style.opacity = '0.5';
+                this.style.cursor = 'grabbing';
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/html', this.innerHTML);
+            }
+
+            function handleDragEnd(e) {
+                this.style.opacity = '1';
+                this.style.cursor = 'grab';
+                draggedElement = null;
+                // Save the new order after drag ends
+                saveOrderToDB();
+            }
+
+            function handleDragOver(e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                
+                const draggable = grid.querySelector('.draggable[style*="opacity"]');
+                if (!draggable || !grid.contains(e.target.closest('.draggable'))) {
+                    return;
+                }
+
+                const afterElement = getDragAfterElement(grid, e.clientY);
+                if (afterElement == null) {
+                    grid.appendChild(draggable);
+                } else {
+                    grid.insertBefore(draggable, afterElement);
+                }
+            }
+
+            function handleDrop(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            function getDragAfterElement(container, y) {
+                const draggableElements = [...container.querySelectorAll('.draggable:not([style*="opacity: 0.5"])')];
+                
+                return draggableElements.reduce((closest, child) => {
+                    const box = child.getBoundingClientRect();
+                    const offset = y - box.top - box.height / 2;
+
+                    if (offset < 0 && offset > closest.offset) {
+                        return { offset: offset, element: child };
+                    } else {
+                        return closest;
+                    }
+                }, { offset: Number.NEGATIVE_INFINITY }).element;
+            }
+
+            // Save category order to database
+            async function saveOrderToDB() {
+                const categoryOrder = Array.from(grid.querySelectorAll('.draggable')).map(el => {
+                    return el.dataset.categoryId;
+                });
+
+                console.log('Saving order:', { gameId, categoryOrder });
+
+                try {
+                    const token = document.querySelector('[name="__RequestVerificationToken"]')?.value || '';
+                    const formData = new URLSearchParams();
+                    formData.append('gameId', gameId);
+                    categoryOrder.forEach((id, index) => {
+                        formData.append(`categoryOrder[${index}]`, id);
+                    });
+                    formData.append('__RequestVerificationToken', token);
+
+                    const response = await fetch('/JeoGame/ReorderCategories', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: formData.toString()
+                    });
+                    
+                    if (response.ok) {
+                        console.log('Order saved successfully');
+                        const data = await response.json();
+                        console.log('Response:', data);
+                    } else {
+                        console.error('Error saving category order:', response.status, response.statusText);
+                        const text = await response.text();
+                        console.error('Response body:', text);
+                    }
+                } catch (error) {
+                    console.error('Error saving category order:', error);
+                }
+            }
+
+            // Add listeners to new draggable elements when added
+            const observer = new MutationObserver(() => {
+                addDragListeners();
+            });
+            observer.observe(grid, { childList: true });
+
+            // Initial setup
+            addDragListeners();
+        }
+    </script>
 }

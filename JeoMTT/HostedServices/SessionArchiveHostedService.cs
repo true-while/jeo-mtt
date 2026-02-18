@@ -18,21 +18,32 @@ namespace JeoMTT.HostedServices
         {
             _serviceProvider = serviceProvider;
             _logger = logger;
-        }
-
-        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        }        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             _logger.LogInformation("SessionArchiveHostedService is starting (interval: 5 minutes)");
 
-            // Initial delay to allow application to fully start
-            await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+            try
+            {
+                // Initial delay to allow application to fully start
+                await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogInformation("SessionArchiveHostedService cancellation requested during startup delay");
+                return;
+            }
 
             // Run archival in a loop with proper async/await handling
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
-                    await ArchiveExpiredSessionsAsync();
+                    await ArchiveExpiredSessionsAsync(stoppingToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    _logger.LogInformation("SessionArchiveHostedService cancellation requested during archival");
+                    break;
                 }
                 catch (Exception ex)
                 {
@@ -46,13 +57,13 @@ namespace JeoMTT.HostedServices
                 }
                 catch (OperationCanceledException)
                 {
-                    _logger.LogInformation("SessionArchiveHostedService cancellation requested");
+                    _logger.LogInformation("SessionArchiveHostedService cancellation requested during interval delay");
                     break;
                 }
             }
-        }
 
-        private async Task ArchiveExpiredSessionsAsync()
+            _logger.LogInformation("SessionArchiveHostedService ExecuteAsync completed");
+        }        private async Task ArchiveExpiredSessionsAsync(CancellationToken cancellationToken)
         {
             try
             {
@@ -61,19 +72,39 @@ namespace JeoMTT.HostedServices
                 using (var scope = _serviceProvider.CreateScope())
                 {
                     var archiveService = scope.ServiceProvider.GetRequiredService<ISessionArchiveService>();
-                    await archiveService.ArchiveExpiredSessionsAsync();
+                    await archiveService.ArchiveExpiredSessionsAsync(cancellationToken);
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogInformation("Session archival was cancelled");
+                throw;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error occurred while archiving expired sessions");
             }
-        }
-
-        public override async Task StopAsync(CancellationToken cancellationToken)
+        }        public override async Task StopAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("SessionArchiveHostedService is stopping");
-            await base.StopAsync(cancellationToken);
+            
+            // Give the service a short time to gracefully stop
+            // The cancellation token will trigger OperationCanceledException in ExecuteAsync
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(10)); // 10 second timeout
+            
+            try
+            {
+                await base.StopAsync(cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning("SessionArchiveHostedService stop timeout exceeded");
+            }
+            finally
+            {
+                cts.Dispose();
+            }
         }
 
         public override void Dispose()

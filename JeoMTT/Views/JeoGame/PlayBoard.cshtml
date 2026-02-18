@@ -75,9 +75,13 @@
                     <i class="bi bi-play-circle"></i> Create Session
                 </a>
                 <div>
-                    <a href="@Url.Action("Index", "JeoGame")" class="btn btn-primary btn-lg">
-                        <i class="bi bi-house"></i> Back to Games
-                    </a>
+                    <form method="post" action="@Url.Action("SaveAndReturn", "JeoGame")" class="d-inline">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-check-circle"></i> Save
+                        </button>
+                    </form>
                 </div>
             </div>
         </div></div>
@@ -95,7 +99,13 @@
                 <form id="questionForm">
                     <input type="hidden" id="categoryId" />
                     <input type="hidden" id="points" />
-                    @Html.AntiForgeryToken()                    <div class="mb-3">
+                    @Html.AntiForgeryToken()
+                    
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Points: <span id="displayPoints">0</span></strong></label>
+                    </div>
+                    
+                    <div class="mb-3">
                         <label for="questionText" class="form-label">Question <span class="text-danger">*</span></label>
                         <div id="questionEditor" class="quill-editor" style="height: 150px; background-color: white;"></div>
                         <input type="hidden" id="questionText" name="questionText" />

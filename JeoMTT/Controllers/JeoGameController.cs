@@ -1,4 +1,6 @@
 using Microsoft.ApplicationInsights;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using JeoMTT.Data;
@@ -6,20 +8,24 @@ using JeoMTT.Models;
 
 namespace JeoMTT.Controllers
 {
+    [Authorize]
     public class JeoGameController : Controller
     {
         private readonly JeoGameDbContext _context;
         private readonly TelemetryClient _telemetryClient;
         private readonly ILogger<JeoGameController> _logger;
+        private readonly UserManager<ApplicationUser> _userManager;
 
         public JeoGameController(
             JeoGameDbContext context,
             TelemetryClient telemetryClient,
-            ILogger<JeoGameController> logger)
+            ILogger<JeoGameController> logger,
+            UserManager<ApplicationUser> userManager)
         {
             _context = context;
             _telemetryClient = telemetryClient;
             _logger = logger;
+            _userManager = userManager;
         }        // GET: JeoGame
         public async Task<IActionResult> GameList()
         {
@@ -91,7 +97,7 @@ namespace JeoMTT.Controllers
             try
             {
                 var jeoGame = await _context.JeoGames
-                    .Include(g => g.Categories)
+                    .Include(g => g.Categories.OrderBy(c => c.DisplayOrder))
                     .ThenInclude(c => c.Questions)
                     .FirstOrDefaultAsync(m => m.Id == id);
 
@@ -213,12 +219,15 @@ namespace JeoMTT.Controllers
         // POST: JeoGame/CreateGame
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CreateGame([Bind("Name,Description,Author")] JeoGame jeoGame)
+        public async Task<IActionResult> CreateGame([Bind("Name,Description")] JeoGame jeoGame)
         {
             if (ModelState.IsValid)
             {
                 try
                 {
+                    // Get the current user and set Author from their Nickname
+                    var user = await _userManager.GetUserAsync(User);
+                    jeoGame.Author = user?.Nickname ?? "Anonymous";
                     jeoGame.CreatedAt = DateTime.Now;
                     _context.Add(jeoGame);
                     await _context.SaveChangesAsync();
@@ -271,38 +280,89 @@ namespace JeoMTT.Controllers
                 _telemetryClient.TrackException(ex);
                 throw;
             }
-        }        // POST: JeoGame/EditGame/5
+        }
+
+        // POST: JeoGame/EditGame/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> EditGame(Guid id, [Bind("Id,Name,Description,Author,CreatedAt")] JeoGame jeoGame)
+        public async Task<IActionResult> EditGame(Guid id, [Bind("Id,Name,Description,CreatedAt")] JeoGame jeoGame)
         {
             if (id != jeoGame.Id)
             {
                 return NotFound();
             }
 
-            if (ModelState.IsValid)
+            // Check which button was clicked
+            var buttonClicked = Request.Form["button"].FirstOrDefault();
+
+            try
             {
-                try
+                // Get current user to set as Author
+                var currentUser = await _userManager.GetUserAsync(User);
+                if (currentUser == null)
                 {
-                    _context.Update(jeoGame);
-                    await _context.SaveChangesAsync();                    _telemetryClient.TrackEvent("JeoGameUpdated", new Dictionary<string, string>
-                    {
-                        { "id", jeoGame.Id.ToString() },
-                        { "name", jeoGame.Name }
-                    });
+                    ModelState.AddModelError("", "User not found. Please log in again.");
+                    return View(jeoGame);
+                }
 
-                    return RedirectToAction(nameof(GameList));
-                }
-                catch (Exception ex)
+                // Get existing game to preserve fields
+                var existingGame = await _context.JeoGames.FindAsync(id);
+                if (existingGame == null)
                 {
-                    _logger.LogError(ex, "Error updating JeoGame with id {Id}", id);
-                    _telemetryClient.TrackException(ex);
-                    throw;
+                    return NotFound();
                 }
+
+                // Clear Author validation errors since we set it server-side
+                ModelState.Remove("Author");
+
+                // Update the fields from the form
+                existingGame.Name = jeoGame.Name;
+                existingGame.Description = jeoGame.Description;
+                // Auto-populate Author from current user's nickname
+                existingGame.Author = currentUser.Nickname ?? currentUser.UserName ?? "Unknown";
+                // CreatedAt is preserved
+
+                // Manually validate the updated model
+                if (string.IsNullOrWhiteSpace(existingGame.Name) || existingGame.Name.Length > 100)
+                {
+                    ModelState.AddModelError("Name", "Game name must be between 1 and 100 characters");
+                }
+                
+                if (!string.IsNullOrEmpty(existingGame.Description) && existingGame.Description.Length > 500)
+                {
+                    ModelState.AddModelError("Description", "Description cannot exceed 500 characters");
+                }
+
+                if (!ModelState.IsValid)
+                {
+                    _logger.LogWarning("ModelState invalid for EditGame. Errors: {Errors}", 
+                        string.Join(", ", ModelState.Values.SelectMany(v => v.Errors)));
+                    return View(existingGame);
+                }
+
+                _context.Update(existingGame);
+                await _context.SaveChangesAsync();
+                _telemetryClient.TrackEvent("JeoGameUpdated", new Dictionary<string, string>
+                {
+                    { "id", existingGame.Id.ToString() },
+                    { "name", existingGame.Name },
+                    { "author", existingGame.Author }
+                });
+                
+                if (buttonClicked == "next")
+                {
+                    return RedirectToAction("ManageCategories", new { id = existingGame.Id });
+                }
+                return RedirectToAction(nameof(GameList));
             }
-
-            return View(jeoGame);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating JeoGame with id {Id}", id);
+                _telemetryClient.TrackException(ex);
+                ModelState.AddModelError("", "An error occurred while saving. Please try again.");
+                var existingGame = await _context.JeoGames.FindAsync(id);
+                return View(existingGame);
+            }
         }        // GET: JeoGame/DeleteGame/5
         public async Task<IActionResult> DeleteGame(Guid? id)
         {
@@ -377,7 +437,7 @@ namespace JeoMTT.Controllers
             try
             {
                 var jeoGame = await _context.JeoGames
-                    .Include(g => g.Categories)
+                    .Include(g => g.Categories.OrderBy(c => c.DisplayOrder))
                     .FirstOrDefaultAsync(m => m.Id == id);
 
                 if (jeoGame == null)
@@ -435,13 +495,14 @@ namespace JeoMTT.Controllers
                 // Check if category name already exists
                 if (jeoGame.Categories.Any(c => c.Name.Equals(categoryName, StringComparison.OrdinalIgnoreCase)))
                 {
-                    return BadRequest("Category already exists");
+                    return BadRequest($"Group name \"{categoryName}\" already exists. Please use a different name.");
                 }
 
                 var category = new Category
                 {
                     Name = categoryName,
-                    JeoGameId = gameId
+                    JeoGameId = gameId,
+                    DisplayOrder = jeoGame.Categories.Count + 1
                 };
 
                 _context.Categories.Add(category);
@@ -486,43 +547,178 @@ namespace JeoMTT.Controllers
                     { "categoryId", categoryId.ToString() }
                 });
 
-                return Ok();
+                return Ok(new { success = true });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error removing category {CategoryId}", categoryId);
+                _logger.LogError(ex, "Error removing category from game {GameId}", gameId);
                 _telemetryClient.TrackException(ex);
                 return StatusCode(500, "Error removing category");
             }
         }
 
-        // POST: JeoGame/FinishCategories
+        // POST: JeoGame/ReorderCategories
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> FinishCategories(Guid id)
+        public async Task<IActionResult> ReorderCategories(Guid gameId, List<Guid> categoryOrder)
+        {
+            try
+            {
+                _logger.LogWarning("ReorderCategories called with gameId: {GameId}, order count: {Count}", 
+                    gameId, categoryOrder?.Count ?? 0);
+
+                if (categoryOrder == null || categoryOrder.Count == 0)
+                {
+                    return BadRequest("Category order is required");
+                }
+
+                var categories = await _context.Categories
+                    .Where(c => c.JeoGameId == gameId && categoryOrder.Contains(c.Id))
+                    .ToListAsync();
+
+                _logger.LogWarning("Found {Count} categories in database", categories.Count);
+
+                for (int i = 0; i < categoryOrder.Count; i++)
+                {
+                    var category = categories.FirstOrDefault(c => c.Id == categoryOrder[i]);
+                    if (category != null)
+                    {
+                        category.DisplayOrder = i + 1;
+                        _logger.LogWarning("Updated category {CategoryId} to DisplayOrder {DisplayOrder}", 
+                            category.Id, category.DisplayOrder);
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+
+                _telemetryClient.TrackEvent("JeoGameCategoriesReordered", new Dictionary<string, string>
+                {
+                    { "gameId", gameId.ToString() },
+                    { "count", categoryOrder.Count.ToString() }
+                });
+
+                return Ok(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error reordering categories for game {GameId}", gameId);
+                _telemetryClient.TrackException(ex);
+                return StatusCode(500, "Error reordering categories");
+            }
+        }
+
+        // POST: JeoGame/SaveAndReturnToGames
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SaveAndReturnToGames(Guid gameId)
+        {
+            try
+            {
+                // Get all categories for this game and save their order
+                var categories = await _context.Categories
+                    .Where(c => c.JeoGameId == gameId)
+                    .OrderBy(c => c.DisplayOrder)
+                    .ToListAsync();
+
+                if (categories.Count > 0)
+                {
+                    // Ensure all categories have proper display order
+                    for (int i = 0; i < categories.Count; i++)
+                    {
+                        categories[i].DisplayOrder = i + 1;
+                    }
+
+                    await _context.SaveChangesAsync();
+
+                    _telemetryClient.TrackEvent("JeoGameCategoriesSaved", new Dictionary<string, string>
+                    {
+                        { "gameId", gameId.ToString() },
+                        { "count", categories.Count.ToString() }
+                    });
+                }
+
+                return RedirectToAction(nameof(GameList));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving categories for game {GameId}", gameId);
+                _telemetryClient.TrackException(ex);
+                return StatusCode(500, "Error saving categories");
+            }
+        }
+
+        // POST: JeoGame/SaveAndContinueToBoard
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SaveAndContinueToBoard(Guid gameId)
+        {
+            try
+            {
+                // Get all categories for this game and save their order
+                var categories = await _context.Categories
+                    .Where(c => c.JeoGameId == gameId)
+                    .OrderBy(c => c.DisplayOrder)
+                    .ToListAsync();
+
+                if (categories.Count > 0)
+                {
+                    // Ensure all categories have proper display order
+                    for (int i = 0; i < categories.Count; i++)
+                    {
+                        categories[i].DisplayOrder = i + 1;
+                    }
+
+                    await _context.SaveChangesAsync();
+
+                    _telemetryClient.TrackEvent("JeoGameCategoriesSavedAndContinued", new Dictionary<string, string>
+                    {
+                        { "gameId", gameId.ToString() },
+                        { "count", categories.Count.ToString() }
+                    });
+                }
+
+                return RedirectToAction(nameof(PlayBoard), new { id = gameId });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving categories and continuing to board for game {GameId}", gameId);
+                _telemetryClient.TrackException(ex);
+                return StatusCode(500, "Error saving categories");
+            }
+        }
+
+        // POST: JeoGame/SaveAndReturn
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SaveAndReturn(Guid id)
         {
             try
             {
                 var jeoGame = await _context.JeoGames
-                    .Include(g => g.Categories)
-                    .FirstOrDefaultAsync(g => g.Id == id);
+                    .Include(g => g.Categories.OrderBy(c => c.DisplayOrder))
+                    .ThenInclude(c => c.Questions)
+                    .FirstOrDefaultAsync(m => m.Id == id);
 
                 if (jeoGame == null)
                 {
                     return NotFound();
                 }
 
-                _telemetryClient.TrackEvent("JeoGameCategoriesFinished", new Dictionary<string, string>
+                // Save all changes to the database (questions that were edited via modal)
+                await _context.SaveChangesAsync();
+
+                _telemetryClient.TrackEvent("JeoGameSavedFromPlayBoard", new Dictionary<string, string>
                 {
-                    { "gameId", id.ToString() },
-                    { "categoryCount", jeoGame.Categories.Count.ToString() }
-                });                return RedirectToAction(nameof(PlayBoard), new { id = jeoGame.Id });
+                    { "gameId", id.ToString() }
+                });
+
+                return RedirectToAction(nameof(GameList));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error finishing categories for game {Id}", id);
+                _logger.LogError(ex, "Error saving game {GameId} from playboard", id);
                 _telemetryClient.TrackException(ex);
-                throw;
+                return StatusCode(500, "Error saving game");
             }
         }
 

@@ -4,6 +4,8 @@
     ViewData["Title"] = "Edit Game";
 }
 
+<link rel="stylesheet" href="~/css/edit-game.css" />
+
 <div class="container mt-4">
     <div class="row">
         <div class="col-md-8 offset-md-2">
@@ -17,24 +19,51 @@
                         <strong>Game ID:</strong> @Model.Id | <strong>Created:</strong> @Model.CreatedAt.ToString("MMM dd, yyyy HH:mm")
                     </div>
 
-                    <form asp-action="EditGame" method="post" novalidate>
+                    <form asp-action="EditGame" method="post" id="editGameForm">
+                        @if (!ViewData.ModelState.IsValid)
+                        {
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                <strong>Validation Errors:</strong>
+                                <ul class="mb-0">
+                                    @foreach (var modelState in ViewData.ModelState.Values)
+                                    {
+                                        @foreach (var error in modelState.Errors)
+                                        {
+                                            <li>@error.ErrorMessage</li>
+                                        }
+                                    }
+                                </ul>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        }
+
                         <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
 
                         <input type="hidden" asp-for="Id" />
                         <input type="hidden" asp-for="CreatedAt" />
 
-                        <div class="mb-3">                            <label asp-for="Name" class="form-label">Game Name <span class="text-danger">*</span></label>
-                            <input asp-for="Name" class="form-control" placeholder="Enter game name" />
+                        <div class="mb-3">
+                            <label asp-for="Name" class="form-label">Game Name <span class="text-danger">*</span></label>
+                            <input asp-for="Name" class="form-control @(ViewData.ModelState["Name"]?.Errors.Count > 0 ? "is-invalid" : "")" placeholder="Enter game name" />
+                            @if (ViewData.ModelState["Name"]?.Errors.Count > 0)
+                            {
+                                <div class="invalid-feedback d-block">
+                                    @ViewData.ModelState["Name"].Errors.FirstOrDefault()?.ErrorMessage
+                                </div>
+                            }
                             <span asp-validation-for="Name" class="text-danger small d-block mt-1"></span>
                             <small class="text-muted">Update the name of your Jeopardy game.</small>
                         </div>
 
-                        <div class="mb-3">                            <label asp-for="Author" class="form-label">Author <span class="text-danger">*</span></label>
-                            <input asp-for="Author" class="form-control" placeholder="Author name" />
-                            <span asp-validation-for="Author" class="text-danger small d-block mt-1"></span>
-                            <small class="text-muted">The author of the game.</small>
-                        </div>                        <div class="mb-3">                            <label asp-for="Description" class="form-label">Description</label>
-                            <textarea asp-for="Description" class="form-control" rows="2" placeholder="Enter a description of your game..."></textarea>
+                        <div class="mb-3">
+                            <label asp-for="Description" class="form-label">Description</label>
+                            <textarea asp-for="Description" class="form-control @(ViewData.ModelState["Description"]?.Errors.Count > 0 ? "is-invalid" : "")" rows="2" placeholder="Enter a description of your game..."></textarea>
+                            @if (ViewData.ModelState["Description"]?.Errors.Count > 0)
+                            {
+                                <div class="invalid-feedback d-block">
+                                    @ViewData.ModelState["Description"].Errors.FirstOrDefault()?.ErrorMessage
+                                </div>
+                            }
                             <span asp-validation-for="Description" class="text-danger small d-block mt-1"></span>
                             <small class="text-muted">Optional: Briefly describe what this game is about.</small>
                         </div>
@@ -43,9 +72,14 @@
                             <a asp-action="Index" class="btn btn-secondary">
                                 <i class="bi bi-arrow-left"></i> Cancel
                             </a>
-                            <button type="submit" class="btn btn-warning">
-                                <i class="bi bi-check-circle"></i> Save Changes
-                            </button>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary" name="button" value="save">
+                                    <i class="bi bi-check-circle"></i> Save
+                                </button>
+                                <button type="submit" class="btn btn-success" name="button" value="next">
+                                    <i class="bi bi-arrow-right"></i> Next: Manage Categories
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -54,92 +88,9 @@
     </div>
 </div>
 
-<style>
-    .card {
-        border: none;
-        border-radius: 0.5rem;
-    }
-
-    .card-header {
-        border-radius: 0.5rem 0.5rem 0 0;
-        padding: 1.25rem;
-        font-weight: 600;
-    }
-
-    .form-label {
-        font-weight: 600;
-        margin-bottom: 0.5rem;
-    }
-
-    .text-danger {
-        font-weight: 700;
-    }
-
-    .form-control:focus {
-        border-color: #ffc107;
-        box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25);
-    }
-
-    textarea.form-control {
-        resize: vertical;
-    }
-
-    .btn {
-        font-weight: 500;
-        padding: 0.5rem 1.5rem;
-    }
-
-    .alert-info {
-        background-color: #cfe2ff;
-        border-color: #b6d4fe;
-        color: #084298;
-    }
-</style>
-
 @section Scripts {
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
-
-    <script>
-        // Track form interactions
-        document.addEventListener('DOMContentLoaded', function() {
-            const form = document.querySelector('form');
-            let formModified = false;
-            
-            form.addEventListener('change', function() {
-                formModified = true;
-            });
-
-            form.addEventListener('submit', function() {
-                if (window.trackEvent) {
-                    trackEvent('JeoGameEditFormSubmitted', {
-                        'gameId': '@Model.Id',
-                        'gameName': document.querySelector('[name="Name"]').value,
-                        'modified': formModified.toString()
-                    });
-                }
-            });
-
-            // Track when user starts editing
-            document.querySelectorAll('.form-control').forEach(input => {
-                input.addEventListener('focus', function() {
-                    if (window.trackEvent && !formModified) {
-                        trackEvent('JeoGameEditFormStarted', {
-                            'gameId': '@Model.Id',
-                            'field': this.name
-                        });
-                    }
-                });
-            });
-
-            // Warn user if they try to leave without saving
-            window.addEventListener('beforeunload', function(e) {
-                if (formModified) {
-                    e.preventDefault();
-                    e.returnValue = '';
-                }
-            });
-        });
-    </script>
+    <script src="~/js/edit-game.js"></script>
 }

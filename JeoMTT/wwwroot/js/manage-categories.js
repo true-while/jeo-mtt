@@ -27,6 +27,17 @@
                 return;
             }
 
+            // Check for duplicate category name
+            const existingCategories = document.querySelectorAll('.category-name');
+            const isDuplicate = Array.from(existingCategories).some(cat => 
+                cat.textContent.trim().toLowerCase() === categoryName.toLowerCase()
+            );
+
+            if (isDuplicate) {
+                showError(errorDiv, `Group name "${categoryName}" already exists. Please use a different name.`);
+                return;
+            }
+
             try {
                 const response = await fetch('/JeoGame/AddCategory', {
                     method: 'POST',

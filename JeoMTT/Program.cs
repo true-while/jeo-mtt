@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 using JeoMTT.Data;
+using JeoMTT.Models;
 using JeoMTT.Services;
 using JeoMTT.HostedServices;
 using JeoMTT.Hubs;
@@ -24,11 +26,35 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<JeoGameDbContext>(options =>
     options.UseSqlServer(connectionString));
 
+// Add ASP.NET Core Identity
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+{
+    options.Password.RequiredLength = 6;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequireUppercase = false;
+})
+.AddEntityFrameworkStores<JeoGameDbContext>()
+.AddDefaultTokenProviders();
+
+// Configure authentication
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.LoginPath = "/User/Login";
+    options.LogoutPath = "/User/LogoutConfirm";
+    options.AccessDeniedPath = "/Home/AccessDenied";
+    options.ExpireTimeSpan = TimeSpan.FromDays(7);
+    options.SlidingExpiration = true;
+});
+
 // Add session archive service
 builder.Services.AddScoped<ISessionArchiveService, SessionArchiveService>();
 
 // Add hosted background service for archiving expired sessions every 10 minutes
-builder.Services.AddHostedService<SessionArchiveHostedService>();
+// Only register in non-development environments to avoid running during local testing
+if (!builder.Environment.IsDevelopment())
+{
+    builder.Services.AddHostedService<SessionArchiveHostedService>();
+}
 
 var app = builder.Build();
 
@@ -43,6 +69,7 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseRouting();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapStaticAssets();

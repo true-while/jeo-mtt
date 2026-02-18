@@ -13,18 +13,13 @@
                 </div>
                 <div class="card-body">
                     <form asp-action="CreateGame" method="post" novalidate>
-                        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>                        <div class="mb-3">
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                        <div class="mb-3">
                             <label asp-for="Name" class="form-label">Game Name <span class="text-danger">*</span></label>
                             <input asp-for="Name" class="form-control" placeholder="Enter game name" />
                             <span asp-validation-for="Name" class="text-danger small d-block mt-1"></span>
                             <small class="text-muted">Enter a descriptive name for your Jeopardy game.</small>
-                        </div>
-
-                        <div class="mb-3">
-                            <label asp-for="Author" class="form-label">Author <span class="text-danger">*</span></label>
-                            <input asp-for="Author" class="form-control" placeholder="Your name" />
-                            <span asp-validation-for="Author" class="text-danger small d-block mt-1"></span>
-                            <small class="text-muted">Who is creating this game?</small>
                         </div>
 
                         <div class="mb-3">

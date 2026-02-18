@@ -18,27 +18,21 @@
     }
 
     function initializeQuillEditor() {
-        // Initialize Quill editor with restricted formats
+        // Initialize Quill editor with enhanced formatting options
         quillEditor = new Quill('#questionEditor', {
             theme: 'snow',
             placeholder: 'Enter your question here...',
             modules: {
                 toolbar: [
-                    ['bold', 'italic', 'underline'],
+                    ['bold', 'italic'],
+                    [{ 'header': [1, 2, 3, false] }],
                     [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                    [{ 'color': [] }, { 'background': [] }],
+                    ['image'],
                     ['clean']
-                ],
-                clipboard: {
-                    matchVisibility: false,
-                    matchers: [
-                        // Block images
-                        ['img', function() {
-                            return '';
-                        }]
-                    ]
-                }
+                ]
             },
-            formats: ['bold', 'italic', 'underline', 'list']
+            formats: ['bold', 'italic', 'header', 'list', 'color', 'background', 'image']
         });
 
         // Update character count on text change
@@ -70,6 +64,7 @@
         const answerText = document.getElementById('answerText');
         const categoryIdInput = document.getElementById('categoryId');
         const pointsInput = document.getElementById('points');
+        const displayPoints = document.getElementById('displayPoints');
         const charCount = document.getElementById('charCount');
         const questionError = document.getElementById('questionError');
         const saveQuestionBtn = document.getElementById('saveQuestionBtn');
@@ -84,6 +79,7 @@
             quillEditor.setContents([]);
             answerText.value = '';
             charCount.textContent = '0';
+            displayPoints.textContent = '0';
             questionError.style.display = 'none';
         });
 
@@ -105,11 +101,13 @@
         const answerText = document.getElementById('answerText');
         const categoryIdInput = document.getElementById('categoryId');
         const pointsInput = document.getElementById('points');
+        const displayPoints = document.getElementById('displayPoints');
         const charCount = document.getElementById('charCount');
         const questionError = document.getElementById('questionError');
 
         categoryIdInput.value = currentCategoryId;
         pointsInput.value = currentPoints;
+        displayPoints.textContent = currentPoints;
 
         // Clear editor
         quillEditor.setContents([]);

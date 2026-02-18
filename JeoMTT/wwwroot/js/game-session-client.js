@@ -109,14 +109,20 @@ class GameSessionClient {
             if (window.onAnswerMarked) {
                 window.onAnswerMarked(data);
             }
-        });
-
-        // Round ended
+        });        // Round ended
         this.connection.on("RoundEnded", (data) => {
             console.log("RoundEnded:", data);
             this.clearRoundTimer();
             if (window.onRoundEnded) {
                 window.onRoundEnded(data);
+            }
+        });
+
+        // Timer update from server (synchronized countdown)
+        this.connection.on("TimerUpdate", (data) => {
+            console.log("TimerUpdate:", data);
+            if (window.onTimerUpdate) {
+                window.onTimerUpdate(data);
             }
         });
 

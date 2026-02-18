@@ -8,10 +8,10 @@ namespace JeoMTT.Services
     /// <summary>
     /// Service responsible for archiving expired game sessions.
     /// Runs as a background task and archives sessions while preserving score and winner information.
-    /// </summary>
+    /// </summary>    
     public interface ISessionArchiveService
     {
-        Task ArchiveExpiredSessionsAsync();
+        Task ArchiveExpiredSessionsAsync(CancellationToken cancellationToken = default);
     }
 
     public class SessionArchiveService : ISessionArchiveService
@@ -28,21 +28,21 @@ namespace JeoMTT.Services
             _context = context;
             _telemetryClient = telemetryClient;
             _logger = logger;
-        }
-
-        /// <summary>
+        }        /// <summary>
         /// Archives all expired active sessions and removes their individual player answers
         /// while preserving the session score and winner information. Uses UTC for all timestamps.
         /// </summary>
-        public async Task ArchiveExpiredSessionsAsync()
+        public async Task ArchiveExpiredSessionsAsync(CancellationToken cancellationToken = default)
         {
             try
             {
                 var currentTimeUtc = DateTime.UtcNow;
-                _logger.LogInformation("Starting session archival process at {timestamp} UTC", currentTimeUtc);                // Find all active sessions that have expired - using UTC comparison
+                _logger.LogInformation("Starting session archival process at {timestamp} UTC", currentTimeUtc);
+
+                // Find all active sessions that have expired - using UTC comparison
                 var expiredSessions = await _context.GameSessions
                     .Where(s => s.Status == GameSessionStatus.Active && s.ExpiresAt < currentTimeUtc)
-                    .ToListAsync();
+                    .ToListAsync(cancellationToken);
 
                 if (expiredSessions.Count == 0)
                 {
@@ -62,16 +62,20 @@ namespace JeoMTT.Services
 
                 foreach (var session in expiredSessions)
                 {
+                    // Check for cancellation
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     try
                     {
-                        // Archive the session                        session.Status = GameSessionStatus.Archived;
+                        // Archive the session
+                        session.Status = GameSessionStatus.Archived;
                         session.CompletedAt = currentTimeUtc;
 
                         // Remove game rounds and answers to clean up data
                         // Keep the session score and player information
                         var gameRounds = await _context.GameRounds
                             .Where(gr => gr.GameSessionId == session.Id)
-                            .ToListAsync();
+                            .ToListAsync(cancellationToken);
 
                         if (gameRounds != null && gameRounds.Count > 0)
                         {
@@ -100,8 +104,8 @@ namespace JeoMTT.Services
                     }
                 }
 
-                // Save all changes to the database
-                int changesCount = await _context.SaveChangesAsync();
+                // Save all changes to the database with timeout
+                int changesCount = await _context.SaveChangesAsync(cancellationToken);
 
                 _logger.LogInformation(
                     "Session archival completed: {archived} sessions archived, {errors} errors, {changes} database changes",
@@ -116,6 +120,11 @@ namespace JeoMTT.Services
                     { "errorCount", errorCount.ToString() },
                     { "totalProcessed", expiredSessions.Count.ToString() }
                 });
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogInformation("Session archival was cancelled");
+                throw;
             }
             catch (Exception ex)
             {

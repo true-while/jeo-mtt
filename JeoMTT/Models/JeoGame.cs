@@ -32,6 +32,8 @@ namespace JeoMTT.Models
         public string Name { get; set; } = string.Empty;
 
         public Guid JeoGameId { get; set; }
+        
+        public int DisplayOrder { get; set; } = 0;
 
         // Relationships
         public JeoGame? JeoGame { get; set; }
